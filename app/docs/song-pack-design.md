@@ -5,6 +5,41 @@ Its songs show up as a library in the song chooser. Packs are often 1–3 GB, so
 is never loaded as a whole. The game reads the zip index once, copies the small files it
 needs into MEMFS, and reads audio from the zip on demand.
 
+## Implementation status
+
+Steps 1–8 below are implemented and covered by `tests/11-zip.spec.ts`,
+`tests/12-song-pack.spec.ts` and the MIDI cases in `app/python/tests/test_core.py`.
+`node tools/check-packs.ts <zip>[::<song folder>] ...` checks real packs against the dev
+server: it indexes the pack, starts the game on a song, autoplays it and reports timings.
+
+Changes from the design, found while implementing:
+
+- **Names.** Non-UTF-8 entry names are CP437 in every pack.
+- **Program changes.** Some Smash Hits charts put a program change before the track
+  name, so the name scan reads every event at tick 0.
+- **Empty meta events.** The MIDI parser stopped reading a track at its first
+  zero-length meta event. It now skips such events and keeps reading.
+- **Drums volume.** The drums stem follows the background (song) volume.
+- **Preview loaders.** `Resource.Loader` had no `isAlive`, so changing songs while a
+  preview was loading raised an error. Canceled loaders are now skipped before they run.
+- **Where the long-song check runs.** The song choosing scene runs it before the
+  difficulty menu. `Song.isSongTooLong` reads only the Ogg headers, and the compressed
+  bytes it reads are reused by the decode that follows.
+
+Results of `tools/check-packs.ts` on the example packs, run locally in Chromium against
+the dev server:
+
+- **Indexing.** Every pack is indexed in 50–70 ms.
+- **Start to playing.** Starting the game and reaching the first song takes 4.5–7 s,
+  including the Pyodide boot. The 8.3-minute *Pull Me Under* takes 10 s, most of it
+  decoding about 760 MB of stems.
+- **Playback.** Autoplay hits notes in every pack. Songs with drums play three stems
+  alongside the music.
+- **Names.** *Mötley Crüe* (CP437) plays.
+- **Long songs.** The 13.7-minute Frampton song shows the "too long" message instead of
+  loading.
+- **Errors.** No errors were logged.
+
 ## Decisions
 
 | Topic | Decision |

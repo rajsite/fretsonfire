@@ -35,10 +35,10 @@ Deviations from the original plan:
   `Thread.name` clobbering in `Resource.Loader`, and `SongInfo` looking for `notes.mid`
   in the writable copy.
 
-Remaining work (step 11 and polish): song import via file upload, a service worker
-cache, `.pyc` precompilation, WebKit/Firefox once they ship JSPI, and calibrating the
-A/V delay (the browser default is 0 ms because the Web Audio clock subtracts the output
-latency).
+Remaining work (step 11 and polish): a service worker cache, `.pyc` precompilation,
+WebKit/Firefox once they ship JSPI, and calibrating the A/V delay (the browser default is
+0 ms because the Web Audio clock subtracts the output latency). Songs can be added as a
+zip song pack on the start screen; see [song-pack-design.md](song-pack-design.md).
 
 ---
 
