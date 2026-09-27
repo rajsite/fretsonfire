@@ -3,14 +3,19 @@ import json
 import sys
 
 import fofjs
-from fof_web import fs
+from fof_web import frame, fs
 
 
 def _publishState(engine):
-  layers = [layer.__class__.__name__ for layer in engine.view.layers]
-  if layers != _publishState.last:
-    _publishState.last = layers
-    fofjs.setState(json.dumps({"layers": layers}))
+  state = {"layers": [layer.__class__.__name__ for layer in engine.view.layers]}
+  for layer in engine.view.layers:
+    player = getattr(layer, "player", None)
+    if player is not None and hasattr(player, "score"):
+      state["score"] = player.score
+      state["notesHit"] = getattr(player, "notesHit", 0)
+  if state != _publishState.last:
+    _publishState.last = state
+    fofjs.setState(json.dumps(state))
 
 
 _publishState.last = None
@@ -37,9 +42,11 @@ def run(argv = ()):
   config = Config.load(Version.appName() + ".ini", setAsDefault = True)
   engine = GameEngine(config)
   engine.setStartupLayer(MainMenu(engine, songName = songName))
+  # Frames may be rendered from nested dialog loops, so publish from the per-frame flush.
+  frame.add_flush_hook(lambda: _publishState(engine))
 
   while engine.run():
-    _publishState(engine)
+    pass
 
   restart = engine.restartRequested
   engine.quit()

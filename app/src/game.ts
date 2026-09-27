@@ -5,6 +5,8 @@ import { hasJspi } from './boot.ts';
 
 export interface GameState {
   layers: string[];
+  score?: number;
+  notesHit?: number;
 }
 
 declare global {

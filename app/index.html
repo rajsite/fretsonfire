@@ -2,21 +2,42 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Frets on Fire (Pyodide)</title>
-    <link rel="stylesheet" href="./src/page.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Frets on Fire</title>
+    <link rel="icon" href="/game/data/icon.png" />
+    <link rel="stylesheet" href="./src/game.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      #container {
+        width: 100vw;
+        height: 100vh;
+      }
+      .fof-links {
+        position: fixed;
+        right: 8px;
+        bottom: 6px;
+        font: 12px system-ui, sans-serif;
+        color: #777;
+      }
+      .fof-links a {
+        color: #aaa;
+      }
+    </style>
   </head>
   <body>
-    <header>Frets on Fire - Pyodide port</header>
-    <main>
-      <h2>Iterative pages</h2>
-      <ul>
-        <li><a href="pages/01-boot.html">01 - Pyodide boot</a></li>
-        <li><a href="pages/02-jspi-loop.html">02 - JSPI frame loop</a></li>
-        <li><a href="pages/03-fs.html">03 - Game files and persistence</a></li>
-        <li><a href="pages/04-gl-shim.html">04 - OpenGL fixed-function emulation (incl. fonts)</a></li>
-        <li><a href="pages/06-input.html">06 - Input</a></li>
-        <li><a href="pages/07-audio.html">07 - Audio</a></li>
-      </ul>
-    </main>
+    <div id="container" class="fof-container">
+      <canvas id="game" width="640" height="480" tabindex="0"></canvas>
+      <div id="overlay" class="fof-overlay" hidden></div>
+    </div>
+    <div class="fof-links">
+      Frets F1&ndash;F5, pick Enter &middot; Alt+Enter fullscreen &middot; <a href="pages/index.html">dev pages</a>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

@@ -1,5 +1,6 @@
 import { createPage } from '../page.ts';
 import { startGameRuntime } from '../runtime.ts';
+import { createPlatform } from '../platform.ts';
 
 const { log, fail, done } = createPage();
 const params = new URLSearchParams(location.search);
@@ -10,6 +11,7 @@ try {
   const t0 = performance.now();
   const rt = await startGameRuntime({
     log,
+    modules: createPlatform(document.createElement('canvas')).modules,
     onProgress: (loaded, total) => {
       document.getElementById('progress')!.textContent = `${Math.round(loaded / 1024)} / ${Math.round(total / 1024)} KB`;
     },
