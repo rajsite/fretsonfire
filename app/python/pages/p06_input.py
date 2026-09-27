@@ -13,12 +13,13 @@ def run(frames):
   import Input
   from Input import KeyListener, MouseListener
 
-  log = {"pressed": [], "released": [], "unicode": [], "mouse": []}
+  log = {"pressed": [], "released": [], "unicode": [], "mouse": [], "controls": []}
 
   class Keys(KeyListener):
     def keyPressed(self, key, unicode):
       log["pressed"].append(key)
       log["unicode"].append(unicode)
+      log["controls"].append(inp.controls.getMapping(key))
       return True
 
     def keyReleased(self, key):

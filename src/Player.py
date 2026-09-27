@@ -20,6 +20,7 @@
 # MA  02110-1301, USA.                                              #
 #####################################################################
 
+import sys
 import pygame
 import Config
 import Song
@@ -56,6 +57,27 @@ Config.define("player", "key_cancel",   str, "K_ESCAPE", text = _("Cancel"))
 Config.define("player", "name",         str, "")
 Config.define("player", "difficulty",   int, Song.EASY_DIFFICULTY)
 
+def encodeJoystickButton(joystick, button):
+  return 0x10000 + (joystick << 8) + button
+
+def encodeJoystickHat(joystick, hat, pos):
+  v = int((pos[1] + 1) * 3 + (pos[0] + 1))
+  return 0x30000 + (joystick << 8) + (hat << 4) + v
+
+def gamepadBindings():
+  """Built-in bindings for gamepads, which the browser presents in a guitar layout (app/src/gamepad.ts)."""
+  if sys.platform != "emscripten":
+    return {}
+  bindings = {}
+  for joy in range(4):
+    for fret, control in enumerate([KEY1, KEY2, KEY3, KEY4, KEY5]):
+      bindings[encodeJoystickButton(joy, fret)] = control
+    bindings[encodeJoystickButton(joy, 9)] = CANCEL
+    # The strum bar is the hat's up/down.
+    for pos, control in [((0, 1), ACTION1), ((0, -1), ACTION2), ((-1, 0), LEFT), ((1, 0), RIGHT)]:
+      bindings[encodeJoystickHat(joy, 0, pos)] = control
+  return bindings
+
 class Controls:
   def __init__(self):
     def keycode(name):
@@ -83,6 +105,10 @@ class Controls:
     
     # Multiple key support
     self.heldKeys = {}
+    for key, control in gamepadBindings().items():
+      if not key in self.controlMapping:
+        self.controlMapping[key] = control
+        self.heldKeys.setdefault(control, [])
 
   def getMapping(self, key):
     return self.controlMapping.get(key)

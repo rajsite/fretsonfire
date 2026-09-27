@@ -1,4 +1,5 @@
 // Browser input for the game: keyboard, mouse, gamepads and resize, queued for Python once per frame.
+import { normalizePad } from './gamepad.ts';
 
 export type InputEvent =
   | { t: 'keydown' | 'keyup'; code: string; key: string; repeat: boolean }
@@ -13,10 +14,15 @@ export type InputEvent =
 const PASSTHROUGH = new Set(['F12']);
 
 interface PadState {
+  profile: string | null;
   buttons: boolean[];
   axes: number[];
-  hat: [number, number];
+  hats: [number, number][];
+  povAxes: Set<number>;
 }
+
+// Gamepads only offer snapshots; polling between frames catches strums shorter than a frame.
+const PAD_POLL_MS = 4;
 
 export interface InputOptions {
   onFullscreenToggle?: () => void;
@@ -25,6 +31,7 @@ export interface InputOptions {
 export class BrowserInput {
   private queue: InputEvent[] = [];
   private pads = new Map<number, PadState>();
+  private padTimer: ReturnType<typeof setInterval> | null = null;
   private lastMouse: [number, number] | null = null;
   // Codes that are down; Android Chrome sends auto-repeat keydowns with repeat=false.
   private held = new Set<string>();
@@ -49,6 +56,11 @@ export class BrowserInput {
       this.push({ t: 'mousemove', x: p.x, y: p.y, dx: p.x - last[0], dy: p.y - last[1] });
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    addEventListener('gamepadconnected', () => this.startPadPolling());
+  }
+
+  private startPadPolling(): void {
+    this.padTimer ??= setInterval(() => this.pollGamepads(), PAD_POLL_MS);
   }
 
   private push(e: InputEvent): void {
@@ -102,39 +114,50 @@ export class BrowserInput {
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const pad of pads) {
       if (!pad) continue;
+      this.startPadPolling();
       let state = this.pads.get(pad.index);
+      const povAxes = state?.povAxes ?? new Set<number>();
+      const next = normalizePad(pad, povAxes);
       if (!state) {
-        state = { buttons: pad.buttons.map(() => false), axes: pad.axes.map(() => 0), hat: [0, 0] };
+        state = {
+          profile: next.profile,
+          buttons: next.buttons.map(() => false),
+          axes: next.axes.map(() => 0),
+          hats: next.hats.map(() => [0, 0] as [number, number]),
+          povAxes,
+        };
         this.pads.set(pad.index, state);
       }
-      const standard = pad.mapping === 'standard';
-      pad.buttons.forEach((b, i) => {
-        // The standard mapping reports the d-pad as buttons 12-15; expose it as a hat instead.
-        if (standard && i >= 12 && i <= 15) return;
-        if (b.pressed !== state.buttons[i]) {
-          state.buttons[i] = b.pressed;
-          this.push({ t: 'joybutton', joy: pad.index, button: i, down: b.pressed });
+      next.buttons.forEach((down, i) => {
+        if (down !== !!state.buttons[i]) {
+          state.buttons[i] = down;
+          this.push({ t: 'joybutton', joy: pad.index, button: i, down });
         }
       });
-      pad.axes.forEach((v, i) => {
-        if (Math.abs(v - state.axes[i]) > 0.01) {
+      next.axes.forEach((v, i) => {
+        if (Math.abs(v - (state.axes[i] ?? 0)) > 0.01) {
           state.axes[i] = v;
           this.push({ t: 'joyaxis', joy: pad.index, axis: i, value: v });
         }
       });
-      if (standard) {
-        const x = (pad.buttons[15]?.pressed ? 1 : 0) - (pad.buttons[14]?.pressed ? 1 : 0);
-        const y = (pad.buttons[12]?.pressed ? 1 : 0) - (pad.buttons[13]?.pressed ? 1 : 0);
-        if (x !== state.hat[0] || y !== state.hat[1]) {
-          state.hat = [x, y];
-          this.push({ t: 'joyhat', joy: pad.index, hat: 0, x, y });
+      next.hats.forEach(([x, y], i) => {
+        const [px, py] = state.hats[i] ?? [0, 0];
+        if (x !== px || y !== py) {
+          state.hats[i] = [x, y];
+          this.push({ t: 'joyhat', joy: pad.index, hat: i, x, y });
         }
-      }
+      });
     }
   }
 
-  joystickInfo(): { index: number; buttons: number; axes: number; hats: number }[] {
-    return [...this.pads.entries()].map(([index, s]) => ({ index, buttons: s.buttons.length, axes: s.axes.length, hats: 1 }));
+  joystickInfo(): { index: number; profile: string | null; buttons: number; axes: number; hats: number }[] {
+    return [...this.pads.entries()].map(([index, s]) => ({
+      index,
+      profile: s.profile,
+      buttons: s.buttons.length,
+      axes: s.axes.length,
+      hats: s.hats.length,
+    }));
   }
 
   // Called by Python once per frame.

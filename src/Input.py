@@ -26,6 +26,7 @@ import Log
 import Audio
 
 from Task import Task
+import Player
 from Player import Controls
 
 if sys.platform == "emscripten":
@@ -166,14 +167,13 @@ class Input(Task):
     return self.broadcastEvent(self.systemListeners, name, *args)
 
   def encodeJoystickButton(self, joystick, button):
-    return 0x10000 + (joystick << 8) + button
+    return Player.encodeJoystickButton(joystick, button)
 
   def encodeJoystickAxis(self, joystick, axis, end):
     return 0x20000 + (joystick << 8) + (axis << 4) + end
   
   def encodeJoystickHat(self, joystick, hat, pos):
-    v = int((pos[1] + 1) * 3 + (pos[0] + 1))
-    return 0x30000 + (joystick << 8) + (hat << 4) + v 
+    return Player.encodeJoystickHat(joystick, hat, pos)
   
   def decodeJoystickButton(self, id):
     id -= 0x10000

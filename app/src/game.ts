@@ -3,6 +3,7 @@ import { startGameRuntime, type GameRuntime } from './runtime.ts';
 import { createPlatform, toggleFullscreen, type Platform } from './platform.ts';
 import { hasJspi } from './boot.ts';
 import { openSongPack, type SongPack } from './songpack.ts';
+import { describePad } from './gamepad.ts';
 
 export interface GameState {
   layers: string[];
@@ -44,7 +45,22 @@ const START_GATE = `
     <label class="fof-pack-pick">Add song pack (.zip)<input id="fof-pack-input" type="file" accept=".zip,application/zip" hidden /></label>
     <span id="fof-pack-status"></span>
     <button id="fof-pack-remove" class="fof-pack-remove" hidden>Remove</button>
-  </div>`;
+  </div>
+  <p id="fof-pad-status" class="fof-pad-status"></p>`;
+
+// Browsers only expose a gamepad after one of its buttons is pressed on the page.
+function setupPadStatus(overlay: HTMLElement): void {
+  const status = overlay.querySelector<HTMLElement>('#fof-pad-status')!;
+  const update = () => {
+    const pads = [...(navigator.getGamepads?.() ?? [])].filter((p): p is Gamepad => !!p);
+    status.textContent = pads.length
+      ? `Guitar connected: ${pads.map(describePad).join(', ')}`
+      : 'Playing with a guitar controller? Press one of its buttons to connect it.';
+  };
+  update();
+  addEventListener('gamepadconnected', update);
+  addEventListener('gamepaddisconnected', update);
+}
 
 // Wires the start gate's song pack picker; returns the pack chosen by the time the game starts.
 function setupPackPicker(overlay: HTMLElement): () => Promise<SongPack | undefined> {
@@ -170,6 +186,7 @@ export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> 
     } else {
       showOverlay(overlay, START_GATE);
       chosenPack = setupPackPicker(overlay);
+      setupPadStatus(overlay);
       document.getElementById('fof-start')!.addEventListener('click', () => void start(), { once: true });
     }
   });

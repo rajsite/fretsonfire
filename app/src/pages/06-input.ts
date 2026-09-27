@@ -15,7 +15,8 @@ try {
   });
   canvas.focus();
   status.textContent = 'listening';
-  const json = await rt.pyodide.runPythonAsync('import pages.p06_input as p; p.run(360)');
+  const frames = Number(new URLSearchParams(location.search).get('frames') ?? 360);
+  const json = await rt.pyodide.runPythonAsync(`import pages.p06_input as p; p.run(${frames})`);
   done({ ...JSON.parse(json), prevented: platform.input.prevented });
 } catch (e) {
   fail(e);

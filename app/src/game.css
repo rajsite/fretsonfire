@@ -75,6 +75,10 @@
 .fof-pack-hint {
   color: #ccc;
 }
+.fof-pad-status {
+  color: #ccc;
+  font-size: 0.9rem;
+}
 .fof-pack-error {
   color: #f88;
 }
