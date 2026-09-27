@@ -26,6 +26,8 @@ export class BrowserInput {
   private queue: InputEvent[] = [];
   private pads = new Map<number, PadState>();
   private lastMouse: [number, number] | null = null;
+  // Codes that are down; Android Chrome sends auto-repeat keydowns with repeat=false.
+  private held = new Set<string>();
   keyRepeat = false;
   cursorVisible = true;
   prevented = 0;
@@ -34,6 +36,7 @@ export class BrowserInput {
     if (!canvas.hasAttribute('tabindex')) canvas.tabIndex = 0;
     addEventListener('keydown', (e) => this.onKey(e, 'keydown'), { capture: true });
     addEventListener('keyup', (e) => this.onKey(e, 'keyup'), { capture: true });
+    addEventListener('blur', () => this.releaseAll());
     canvas.addEventListener('mousedown', (e) => {
       canvas.focus();
       this.push({ t: 'mousedown', button: e.button + 1, ...this.pos(e) });
@@ -61,7 +64,12 @@ export class BrowserInput {
   }
 
   private onKey(e: KeyboardEvent, t: 'keydown' | 'keyup'): void {
-    if (e.ctrlKey || e.metaKey || PASSTHROUGH.has(e.code)) return;
+    // Soft keyboards report composition keys without a code; the game has no use for them.
+    if (!e.code) return;
+    const wasHeld = this.held.has(e.code);
+    if (t === 'keyup') this.held.delete(e.code);
+    // A key the game saw go down always gets its keyup, even with a modifier pressed meanwhile.
+    if ((e.ctrlKey || e.metaKey || PASSTHROUGH.has(e.code)) && !(t === 'keyup' && wasHeld)) return;
     if (t === 'keydown' && e.altKey && e.code === 'Enter') {
       e.preventDefault();
       this.options.onFullscreenToggle?.();
@@ -69,8 +77,16 @@ export class BrowserInput {
     }
     e.preventDefault();
     this.prevented++;
-    if (t === 'keydown' && e.repeat && !this.keyRepeat) return;
-    this.push({ t, code: e.code, key: e.key.length === 1 ? e.key : '', repeat: e.repeat });
+    const repeat = t === 'keydown' && (e.repeat || wasHeld);
+    if (t === 'keydown') this.held.add(e.code);
+    if (repeat && !this.keyRepeat) return;
+    this.push({ t, code: e.code, key: e.key.length === 1 ? e.key : '', repeat });
+  }
+
+  // Keys released while the page is not focused never send keyup.
+  private releaseAll(): void {
+    for (const code of this.held) this.push({ t: 'keyup', code, key: '', repeat: false });
+    this.held.clear();
   }
 
   resized(width: number, height: number): void {

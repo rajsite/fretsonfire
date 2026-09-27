@@ -11,4 +11,8 @@ test('index shows a start gate and boots the game after a click', async ({ page 
   await expect(page.locator('#overlay')).toBeHidden();
   const size = await page.locator('#game').boundingBox();
   expect(size!.width / size!.height).toBeCloseTo(4 / 3, 1);
+
+  await page.locator('#fof-fullscreen').click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement?.id ?? null)).toBe('container');
+  expect(await page.evaluate(() => document.activeElement?.id)).toBe('game');
 });

@@ -28,6 +28,15 @@
       .fof-links a {
         color: #aaa;
       }
+      .fof-links button {
+        font: inherit;
+        color: #ddd;
+        background: #333;
+        border: 1px solid #666;
+        border-radius: 4px;
+        padding: 4px 10px;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -36,7 +45,7 @@
       <div id="overlay" class="fof-overlay" hidden></div>
     </div>
     <div class="fof-links">
-      Frets F1&ndash;F5, pick Enter &middot; Alt+Enter fullscreen &middot; <a href="pages/index.html">dev pages</a>
+      Frets F1&ndash;F5, pick Enter &middot; <button id="fof-fullscreen" type="button">Fullscreen</button> (Alt+Enter) &middot; <a href="pages/index.html">dev pages</a>
     </div>
     <script type="module" src="./src/main.ts"></script>
   </body>

@@ -16,10 +16,21 @@ test('keyboard and mouse reach the game Input task without browser side effects'
   for (const key of ['F1', 'F2', 'F5', 'Enter', 'Escape', 'a', 'ArrowLeft']) {
     await page.keyboard.press(key);
   }
+  // Android Chrome sends auto-repeat keydowns with repeat=false; a held key must press once.
+  // F2 is still held when the window loses focus, which releases it.
+  await page.evaluate(() => {
+    const key = (type: string, code: string) => dispatchEvent(new KeyboardEvent(type, { code, key: code, cancelable: true }));
+    key('keydown', 'Enter');
+    key('keydown', 'Enter');
+    key('keydown', 'Enter');
+    key('keyup', 'Enter');
+    key('keydown', 'F2');
+    dispatchEvent(new Event('blur'));
+  });
   await page.locator('#game').click({ position: { x: 10, y: 20 } });
   const result = await waitForResult<InputResult>(page);
   const k = result.keys;
-  expect(result.log.pressed).toEqual([k.K_F1, k.K_F2, k.K_F5, k.K_RETURN, k.K_ESCAPE, k.K_a, k.K_LEFT]);
+  expect(result.log.pressed).toEqual([k.K_F1, k.K_F2, k.K_F5, k.K_RETURN, k.K_ESCAPE, k.K_a, k.K_LEFT, k.K_RETURN, k.K_F2]);
   expect(result.log.released).toEqual(result.log.pressed);
   expect(result.log.unicode[5]).toBe('a');
   expect(result.log.mouse[0][1]).toBe(1);
