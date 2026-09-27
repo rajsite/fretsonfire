@@ -25,7 +25,7 @@ a `.zip` of the same pack exists.
 | Pack | Size | Songs | Layout | Guitar track | Notes |
 |---|---|---|---|---|---|
 | Band Hero | 1.0 GB | 65 | `<song>/` | `PART GUITAR` #3 | 4 stems, `album.png`, `titles.ini` |
-| Guitar Hero 5 | 2.0 GB | 85 | `<song>/` | `PART GUITAR` #3 | non-ASCII names (`Mötley Crüe`), a latin-1 `song.ini`, a 13.7 min song |
+| Guitar Hero 5 | 2.0 GB | 85 | `<song>/` | `PART GUITAR` #3 | CP437 names (`Mötley Crüe`), a latin-1 `song.ini`, a 13.7 min song |
 | GH I–II–Encore–III | 1.8 GB | 189 | `<pack>/<game>/<song>/` | `T1 GEMS`/`PART GUITAR` #1, 2× format 0 | FoF-native, `label.png`, one song without `song.ogg`, stray `notes2.mid`/`song.ini~` |
 | GH Smash Hits | 1.0 GB | 48 | `<song>/` | `PART GUITAR` #2–3 | `thumbs.db`, a `Rhythm.ogg`, MIDI division 100 |
 | GH World Tour | 3.1 GB | 84 | `<song>/` | `PART GUITAR` #3 | offsets above 2³¹, one song without `song.ogg` |
@@ -38,8 +38,9 @@ Findings that drive the design:
   it only accepts notes from tracks 0–1. `MidiInfoReader` does not filter tracks at
   all, so it also reports difficulties from the drums and bass charts.
 - **Case.** MEMFS is case-sensitive, and the Rock Band packs capitalize every file name.
-- **Names.** Zip entry names without the UTF-8 flag are Windows-1252 in practice, not
-  the CP437 that the zip spec implies.
+- **Names.** Zip entry names without the UTF-8 flag are CP437, as the zip spec says:
+  0x94 is `ö` and 0x81 is `ü` in `Mötley Crüe` and `Motörhead`. GH I–III sets the UTF-8
+  flag.
 - **Offsets.** GH World Tour has local header offsets above 2³¹, so every 32-bit field
   must be read unsigned.
 - **Nesting.** GH I–III nests songs two levels deep under a wrapper folder.
@@ -102,7 +103,8 @@ never reads the whole file.
    All 32-bit reads go through `DataView.getUint32` (offsets above 2³¹), and 64-bit
    values are converted to `Number` after checking `Number.isSafeInteger`.
 3. **Names.** With flag bit 11 set, decode as UTF-8. Otherwise try strict UTF-8 first,
-   then fall back to `TextDecoder('windows-1252')`.
+   because some tools write UTF-8 without setting the flag, then fall back to a CP437
+   table.
 4. **Reading an entry.**
    - Read the 30-byte local header to get its own name and extra field lengths, which
      can differ from the central directory.
@@ -220,8 +222,8 @@ These rules turn zip entries into a MEMFS tree under `/game/data/songs/<pack>/`,
 - **Fixture (`tests/fixtures/make-pack.ts`).** A minimal zip writer based on
   `node:zlib.deflateRawSync`. It builds a small pack at test time from the bundled songs,
   with:
-  - a wrapper folder, sub-libraries, capitalized file names, and a Windows-1252 name
-    without the UTF-8 flag;
+  - a wrapper folder, sub-libraries, capitalized file names, and a CP437 name without
+    the UTF-8 flag;
   - both stored and deflated entries;
   - a Rock Band style MIDI with `PART DRUMS` at #1 and `PART GUITAR` at #3;
   - a `drums.ogg`, and a song without `song.ogg`;
