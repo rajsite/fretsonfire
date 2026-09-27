@@ -136,9 +136,13 @@ export async function openZip(source: ZipSource): Promise<ZipArchive> {
   return { source, entries };
 }
 
-async function dataRange(archive: ZipArchive, entry: ZipEntry): Promise<Blob> {
+function checkSupported(entry: ZipEntry): void {
   if (entry.flags & FLAG_ENCRYPTED) throw new ZipError(`${entry.name}: encrypted entries are not supported`);
   if (entry.method !== 0 && entry.method !== 8) throw new ZipError(`${entry.name}: unsupported compression method ${entry.method}`);
+}
+
+async function dataRange(archive: ZipArchive, entry: ZipEntry): Promise<Blob> {
+  checkSupported(entry);
   const local = await read(archive.source, entry.localOffset, 30);
   if (local.getUint32(0, true) !== LOCAL_SIG) throw new ZipError(`${entry.name}: corrupt local header`);
   const start = entry.localOffset + 30 + local.getUint16(26, true) + local.getUint16(28, true);
@@ -146,45 +150,54 @@ async function dataRange(archive: ZipArchive, entry: ZipEntry): Promise<Blob> {
   return archive.source.slice(start, start + entry.compressedSize);
 }
 
-// Inflates while enforcing the declared size, which also bounds hostile archives.
-function inflate(data: Blob, entry: ZipEntry): ReadableStream<Uint8Array> {
-  let total = 0;
-  const guard = new TransformStream<Uint8Array, Uint8Array>({
-    transform(chunk, controller) {
-      total += chunk.byteLength;
-      if (total > entry.size) throw new ZipError(`${entry.name}: larger than its declared size`);
-      controller.enqueue(chunk);
-    },
-    flush() {
-      if (total !== entry.size) throw new ZipError(`${entry.name}: size mismatch`);
-    },
-  });
-  return data.stream().pipeThrough(new DecompressionStream('deflate-raw')).pipeThrough(guard);
+// The local header and data in one read; the header's name and extra fields are at most 64 KiB each.
+async function compressedBytes(archive: ZipArchive, entry: ZipEntry): Promise<Uint8Array<ArrayBuffer>> {
+  checkSupported(entry);
+  const end = Math.min(archive.source.size, entry.localOffset + 30 + 2 * U16_MAX + entry.compressedSize);
+  const buf = new Uint8Array(await archive.source.slice(entry.localOffset, end).arrayBuffer());
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  if (buf.length < 30 || view.getUint32(0, true) !== LOCAL_SIG) throw new ZipError(`${entry.name}: corrupt local header`);
+  const start = 30 + view.getUint16(26, true) + view.getUint16(28, true);
+  if (start + entry.compressedSize > buf.length) throw new ZipError(`${entry.name}: truncated`);
+  return buf.subarray(start, start + entry.compressedSize);
+}
+
+// Streaming a Blob costs one main-thread task per chunk, which busy game frames starve, so inflate
+// from memory; the declared size also bounds hostile archives.
+async function inflate(input: Uint8Array<ArrayBuffer>, entry: ZipEntry): Promise<Uint8Array<ArrayBuffer>> {
+  const stream = new DecompressionStream('deflate-raw');
+  const writer = stream.writable.getWriter();
+  writer.write(input).catch(() => {});
+  writer.close().catch(() => {});
+  const out = new Uint8Array(entry.size);
+  let offset = 0;
+  const reader = stream.readable.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (offset + value.byteLength > entry.size) {
+      reader.cancel().catch(() => {});
+      throw new ZipError(`${entry.name}: larger than its declared size`);
+    }
+    out.set(value, offset);
+    offset += value.byteLength;
+  }
+  if (offset !== entry.size) throw new ZipError(`${entry.name}: size mismatch`);
+  return out;
 }
 
 export async function readEntry(archive: ZipArchive, entry: ZipEntry, maxSize = Infinity): Promise<Uint8Array> {
   if (entry.size > maxSize) throw new ZipError(`${entry.name}: too large (${entry.size} bytes)`);
-  const data = await dataRange(archive, entry);
+  const data = await compressedBytes(archive, entry);
   if (entry.method === 0) {
     if (entry.compressedSize !== entry.size) throw new ZipError(`${entry.name}: size mismatch`);
-    return new Uint8Array(await data.arrayBuffer());
+    return data;
   }
-  const out = new Uint8Array(entry.size);
-  let offset = 0;
-  const reader = inflate(data, entry).getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    out.set(value, offset);
-    offset += value.byteLength;
-  }
-  return out;
+  return inflate(data, entry);
 }
 
 // A Blob of the entry's contents: a zero-copy slice for stored entries.
 export async function entryBlob(archive: ZipArchive, entry: ZipEntry, type = ''): Promise<Blob> {
-  const data = await dataRange(archive, entry);
-  if (entry.method === 0) return data.slice(0, data.size, type);
-  const blob = await new Response(inflate(data, entry)).blob();
-  return type ? blob.slice(0, blob.size, type) : blob;
+  if (entry.method === 0) return (await dataRange(archive, entry)).slice(0, entry.size, type);
+  return new Blob([await inflate(await compressedBytes(archive, entry), entry)], { type });
 }

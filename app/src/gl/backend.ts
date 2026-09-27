@@ -133,8 +133,13 @@ export class GLBackend {
     texFormat: -1,
     texEnv: -1,
     vao: null as WebGLVertexArrayObject | null,
-    texIdentity: false,
+    numLights: -1,
   };
+  // Last uploaded float uniforms: meshes like the song chooser's cassettes issue hundreds of lit draws a frame.
+  private uniformValues = new Map<string, Float32Array>();
+  private lightDirs = new Float32Array(MAX_LIGHTS * 3);
+  private lightDiffuse = new Float32Array(MAX_LIGHTS * 4);
+  private lightAmbient = new Float32Array(MAX_LIGHTS * 4);
 
   constructor(readonly canvas: HTMLCanvasElement) {
     const gl = canvas.getContext('webgl2', {
@@ -298,6 +303,25 @@ export class GLBackend {
 
   // --- Command execution ----------------------------------------------------
 
+  private uniform(name: string, kind: 'm4' | 'm3' | 'v4' | 'v3', data: Float32Array, offset: number, length: number): void {
+    let last = this.uniformValues.get(name);
+    if (last) {
+      let k = 0;
+      while (k < length && last[k] === data[offset + k]) k++;
+      if (k === length) return;
+    } else {
+      last = new Float32Array(length);
+      this.uniformValues.set(name, last);
+    }
+    last.set(data.subarray(offset, offset + length));
+    const gl = this.gl;
+    const loc = this.u[name];
+    if (kind === 'm4') gl.uniformMatrix4fv(loc, false, last);
+    else if (kind === 'm3') gl.uniformMatrix3fv(loc, false, last);
+    else if (kind === 'v4') gl.uniform4fv(loc, last);
+    else gl.uniform3fv(loc, last);
+  }
+
   private setFlags(flags: number): void {
     const gl = this.gl;
     const changed = flags ^ this.cur.flags;
@@ -356,7 +380,7 @@ export class GLBackend {
           if (!(flags & F_VTEX)) gl.vertexAttrib2f(2, cmd[i + 4], cmd[i + 5]);
           if (!(flags & F_VNORMAL)) gl.vertexAttrib3f(3, cmd[i + 6], cmd[i + 7], cmd[i + 8]);
           i += 9;
-          gl.uniformMatrix4fv(this.u.uMVP, false, cmd, i, 16);
+          this.uniform('uMVP', 'm4', cmd, i, 16);
           i += 16;
 
           if (flags & F_BLEND && (blendSrc !== this.cur.blendSrc || blendDst !== this.cur.blendDst)) {
@@ -382,34 +406,36 @@ export class GLBackend {
             }
           }
           if (flags & F_TEXMATRIX) {
-            gl.uniformMatrix4fv(this.u.uTexMatrix, false, cmd, i, 16);
-            this.cur.texIdentity = false;
+            this.uniform('uTexMatrix', 'm4', cmd, i, 16);
             i += 16;
-          } else if (!this.cur.texIdentity) {
-            gl.uniformMatrix4fv(this.u.uTexMatrix, false, IDENTITY);
-            this.cur.texIdentity = true;
+          } else {
+            this.uniform('uTexMatrix', 'm4', IDENTITY, 0, 16);
           }
           if (flags & F_LIGHTING) {
-            gl.uniformMatrix3fv(this.u.uNormalMatrix, false, cmd, i, 9);
+            this.uniform('uNormalMatrix', 'm3', cmd, i, 9);
             i += 9;
-            gl.uniform4fv(this.u.uSceneAmbient, cmd, i, 4);
-            gl.uniform4fv(this.u.uMatAmbient, cmd, i + 4, 4);
-            gl.uniform4fv(this.u.uMatDiffuse, cmd, i + 8, 4);
+            this.uniform('uSceneAmbient', 'v4', cmd, i, 4);
+            this.uniform('uMatAmbient', 'v4', cmd, i + 4, 4);
+            this.uniform('uMatDiffuse', 'v4', cmd, i + 8, 4);
             i += 12;
             const n = cmd[i++];
-            gl.uniform1i(this.u.uNumLights, n);
-            const dirs = new Float32Array(MAX_LIGHTS * 3);
-            const diffuse = new Float32Array(MAX_LIGHTS * 4);
-            const ambient = new Float32Array(MAX_LIGHTS * 4);
+            if (n !== this.cur.numLights) {
+              gl.uniform1i(this.u.uNumLights, n);
+              this.cur.numLights = n;
+            }
+            const { lightDirs: dirs, lightDiffuse: diffuse, lightAmbient: ambient } = this;
+            dirs.fill(0);
+            diffuse.fill(0);
+            ambient.fill(0);
             for (let l = 0; l < n; l++) {
               dirs.set(cmd.subarray(i, i + 3), l * 3);
               diffuse.set(cmd.subarray(i + 3, i + 7), l * 4);
               ambient.set(cmd.subarray(i + 7, i + 11), l * 4);
               i += 11;
             }
-            gl.uniform3fv(this.u.uLightDir, dirs);
-            gl.uniform4fv(this.u.uLightDiffuse, diffuse);
-            gl.uniform4fv(this.u.uLightAmbient, ambient);
+            this.uniform('uLightDir', 'v3', dirs, 0, dirs.length);
+            this.uniform('uLightDiffuse', 'v4', diffuse, 0, diffuse.length);
+            this.uniform('uLightAmbient', 'v4', ambient, 0, ambient.length);
           }
           if (vao) {
             gl.drawArrays(mode, first, count);

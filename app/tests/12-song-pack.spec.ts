@@ -122,12 +122,21 @@ test('song chooser previews stream instead of decoding', async ({ page }) => {
     if (m.type() === 'error' || m.text().startsWith('(E)')) errors.push(m.text());
   });
   await page.goto('index.html');
+  await page.locator('#fof-pack-input').setInputFiles(PACK);
+  await expect(page.locator('#fof-pack-status')).toHaveClass('fof-pack-ok');
   await page.locator('#fof-start').click();
   await expect.poll(async () => (await state(page)).layers, { timeout: 120_000 }).toContain('Menu');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await state(page)).layers, { timeout: 60_000 }).toContain('SongChooser');
+  // Into the pack, then its first sub-library (Classic), whose songs have deflated song.ogg files.
+  await page.waitForTimeout(1000);
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(2000);
+  await page.keyboard.press('Enter');
   const audioStats = () => page.evaluate(() => window.__fof!.platform!.audio().stats());
-  await expect.poll(async () => (await audioStats()).streams.filter((s) => s.playing).length, { timeout: 30_000 }).toBe(1);
+  await expect
+    .poll(async () => (await audioStats()).streams.filter((s) => s.playing && s.time > 0).map((s) => s.path), { timeout: 30_000 })
+    .toEqual([expect.stringMatching(/^\/game\/data\/songs\/Test Pack\/Classic\/[^/]+\/song\.ogg$/)]);
   // Moving on quickly cancels the pending preview and starts the next one.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');

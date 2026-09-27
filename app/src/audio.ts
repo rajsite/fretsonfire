@@ -210,10 +210,21 @@ export class WebAudioEngine {
     return buffer;
   }
 
-  stats(): { cached: string[]; sounds: number; playingSounds: number; streams: { path: string; playing: boolean; time: number }[] } {
+  stats(): {
+    cached: string[];
+    sounds: number;
+    playingSounds: number;
+    streams: { path: string; playing: boolean; time: number; error: number | null; gain: number }[];
+  } {
     let playingSounds = 0;
     for (const s of this.sounds.values()) if ([...s.playbacks].some((pb) => this.isActive(pb))) playingSounds++;
-    const streams = [...this.streams.values()].map((s) => ({ path: s.path, playing: !s.el.paused && !s.el.ended, time: s.el.currentTime }));
+    const streams = [...this.streams.values()].map((s) => ({
+      path: s.path,
+      playing: !s.el.paused && !s.el.ended,
+      time: s.el.currentTime,
+      error: s.el.error?.code ?? null,
+      gain: s.gain.gain.value,
+    }));
     return { cached: [...this.buffers.keys()], sounds: this.sounds.size, playingSounds, streams };
   }
 
@@ -433,10 +444,12 @@ export class WebAudioEngine {
     clearTimeout(s.fadeTimer);
     s.gain.gain.cancelScheduledValues(this.ctx.currentTime);
     s.gain.gain.setValueAtTime(s.volume, this.ctx.currentTime);
-    void s.ready.then(() => {
-      s.el.currentTime = startSeconds;
-      return s.el.play();
-    }).catch(() => {});
+    void s.ready
+      .then(() => {
+        s.el.currentTime = startSeconds;
+        return s.el.play();
+      })
+      .catch((e: unknown) => console.warn(`stream ${s.path}: ${e instanceof Error ? e.message : String(e)}`));
   }
 
   streamStop(id: number): void {
