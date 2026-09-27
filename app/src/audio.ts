@@ -4,6 +4,47 @@
 import type { LazySource } from './fs.ts';
 
 const START_GUARD = 0.05;
+const SONGS_DIR = '/game/data/songs/';
+// Decoded (float32) stems of one song may use at most this much memory.
+export const SONG_PCM_BUDGET = 1 << 30;
+
+// Channels and length of an Ogg Vorbis or Opus file, from its headers and last page.
+export function oggInfo(data: Uint8Array): { channels: number; seconds: number } | null {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const find = (sig: string, limit: number) => {
+    outer: for (let i = 0; i + sig.length <= Math.min(limit, data.length); i++) {
+      for (let j = 0; j < sig.length; j++) if (data[i + j] !== sig.charCodeAt(j)) continue outer;
+      return i;
+    }
+    return -1;
+  };
+  let channels: number, rate: number, preSkip = 0;
+  const vorbis = find('\x01vorbis', 4096);
+  const opus = vorbis < 0 ? find('OpusHead', 4096) : -1;
+  if (vorbis >= 0 && vorbis + 16 <= data.length) {
+    channels = data[vorbis + 11];
+    rate = view.getUint32(vorbis + 12, true);
+  } else if (opus >= 0 && opus + 12 <= data.length) {
+    channels = data[opus + 9];
+    preSkip = view.getUint16(opus + 10, true);
+    rate = 48000;
+  } else {
+    return null;
+  }
+  const stop = Math.max(0, data.length - 65_536 - 27);
+  for (let i = data.length - 27; i >= stop; i--) {
+    if (data[i] === 0x4f && data[i + 1] === 0x67 && data[i + 2] === 0x67 && data[i + 3] === 0x53 && data[i + 4] === 0) {
+      const granule = Number(view.getBigInt64(i + 6, true));
+      if (granule > 0 && rate > 0) return { channels, seconds: (granule - preSkip) / rate };
+    }
+  }
+  return null;
+}
+
+// Song stems are cached per song folder; loading from another song drops the others.
+function songDir(path: string): string | null {
+  return path.startsWith(SONGS_DIR) ? path.slice(0, path.lastIndexOf('/')) : null;
+}
 
 interface Playback {
   buffer: AudioBuffer;
@@ -27,7 +68,9 @@ export class WebAudioEngine {
   readonly ctx: AudioContext;
   private master: GainNode;
   private buffers = new Map<string, Promise<AudioBuffer>>();
-  private decoded: AudioBuffer[] = [];
+  // Compressed bytes read by tooLong(), kept for the decode that usually follows.
+  private encoded = new Map<string, Uint8Array>();
+  private decoded: (AudioBuffer | null)[] = [];
   private sounds = new Map<number, { buffer: AudioBuffer; volume: number; playbacks: Set<Playback> }>();
   private channels: { gain: GainNode; playback: Playback | null }[] = [];
   private music: { buffer: AudioBuffer | null; gain: GainNode; playback: Playback | null; startOffset: number; paused: boolean };
@@ -73,11 +116,13 @@ export class WebAudioEngine {
   // --- Loading --------------------------------------------------------------
 
   load(path: string): Promise<number> {
+    const dir = songDir(path);
+    if (dir) this.evictSongsExcept(dir);
     let p = this.buffers.get(path);
     if (!p) {
       p = (async () => {
-        const source = this.files.lazy(path);
-        const data = source ? await source.bytes() : this.files.readFile(path);
+        const data = this.encoded.get(path) ?? (await this.readEncoded(path));
+        this.encoded.delete(path);
         const whole = data.byteOffset === 0 && data.byteLength === data.buffer.byteLength;
         const bytes = (whole ? data.buffer : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)) as ArrayBuffer;
         return this.ctx.decodeAudioData(bytes);
@@ -94,6 +139,66 @@ export class WebAudioEngine {
 
   duration(bufferId: number): number {
     return this.decoded[bufferId]?.duration ?? 0;
+  }
+
+  private async readEncoded(path: string): Promise<Uint8Array> {
+    const source = this.files.lazy(path);
+    return source ? source.bytes() : this.files.readFile(path);
+  }
+
+  // Whether decoding all of these files (one song's stems) would exceed SONG_PCM_BUDGET.
+  async tooLong(paths: string[]): Promise<boolean> {
+    const sizes = await Promise.all(
+      paths.map(async (path) => {
+        const cached = this.buffers.get(path);
+        if (cached) {
+          const buffer = await cached;
+          return buffer.length * buffer.numberOfChannels * 4;
+        }
+        const data = this.encoded.get(path) ?? (await this.readEncoded(path));
+        this.encoded.set(path, data);
+        const info = oggInfo(data);
+        return info ? info.seconds * this.ctx.sampleRate * info.channels * 4 : 0;
+      }),
+    );
+    const tooLong = sizes.reduce((a, b) => a + b, 0) > SONG_PCM_BUDGET;
+    if (tooLong) for (const path of paths) this.encoded.delete(path);
+    return tooLong;
+  }
+
+  prefetch(path: string): void {
+    this.load(path).catch(() => {});
+  }
+
+  private evictSongsExcept(dir: string): void {
+    for (const path of this.encoded.keys()) {
+      const d = songDir(path);
+      if (d && d !== dir) this.encoded.delete(path);
+    }
+    for (const [path, promise] of this.buffers) {
+      const d = songDir(path);
+      if (!d || d === dir) continue;
+      this.buffers.delete(path);
+      promise.then(
+        (buffer) => {
+          const id = this.decoded.indexOf(buffer);
+          if (id >= 0) this.decoded[id] = null;
+        },
+        () => {},
+      );
+    }
+  }
+
+  private buffer(bufferId: number): AudioBuffer {
+    const buffer = this.decoded[bufferId];
+    if (!buffer) throw new Error(`audio buffer ${bufferId} was released`);
+    return buffer;
+  }
+
+  stats(): { cached: string[]; sounds: number; playingSounds: number } {
+    let playingSounds = 0;
+    for (const s of this.sounds.values()) if ([...s.playbacks].some((pb) => this.isActive(pb))) playingSounds++;
+    return { cached: [...this.buffers.keys()], sounds: this.sounds.size, playingSounds };
   }
 
   // --- Playback primitives ----------------------------------------------------
@@ -194,8 +299,13 @@ export class WebAudioEngine {
 
   createSound(bufferId: number): number {
     const id = this.nextSound++;
-    this.sounds.set(id, { buffer: this.decoded[bufferId], volume: 1, playbacks: new Set() });
+    this.sounds.set(id, { buffer: this.buffer(bufferId), volume: 1, playbacks: new Set() });
     return id;
+  }
+
+  // Python dropped the sound; playbacks still running keep their buffer until they end.
+  soundRelease(id: number): void {
+    this.sounds.delete(id);
   }
 
   soundPlay(id: number, loops: number, channel: number): void {
@@ -265,7 +375,7 @@ export class WebAudioEngine {
 
   musicLoad(bufferId: number): void {
     this.musicStop();
-    this.music.buffer = this.decoded[bufferId];
+    this.music.buffer = this.buffer(bufferId);
   }
 
   musicPlay(loops: number, startSeconds: number): void {

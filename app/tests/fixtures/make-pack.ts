@@ -32,6 +32,19 @@ export function midiFile(tracks: [string, number[]][]): Uint8Array {
 }
 
 export const RB_GUITAR_NOTES = 20;
+export const LONG_SONG_MINUTES = 120;
+
+// Rewrites the granule position of the last Ogg page so the file claims a longer duration.
+export function withDuration(ogg: Uint8Array, seconds: number, rate = 44100): Uint8Array {
+  const out = ogg.slice();
+  for (let i = out.length - 27; i >= 0; i--) {
+    if (out[i] === 0x4f && out[i + 1] === 0x67 && out[i + 2] === 0x67 && out[i + 3] === 0x53) {
+      new DataView(out.buffer).setBigInt64(i + 6, BigInt(Math.round(seconds * rate)), true);
+      return out;
+    }
+  }
+  throw new Error('not an Ogg file');
+}
 
 // "Mötley" in CP437, without the UTF-8 flag.
 const CP437_NAME = new Uint8Array([...new TextEncoder().encode('Test Pack/Classic/03 M'), 0x94, ...new TextEncoder().encode('tley/')]);
@@ -69,6 +82,10 @@ export function makeTestPack(): Uint8Array {
     cp437Entry('song.ogg', song),
     cp437Entry('guitar.ogg', guitar),
     cp437Entry('label.png', read('bangbang', 'label.png')),
+    { name: 'Test Pack/Classic/04 Long Song/song.ini', data: '[song]\nname = Long Song\nartist = Test Band\n' },
+    { name: 'Test Pack/Classic/04 Long Song/notes.mid', data: read('defy', 'notes.mid') },
+    { name: 'Test Pack/Classic/04 Long Song/song.ogg', data: withDuration(song, LONG_SONG_MINUTES * 60) },
+    { name: 'Test Pack/Classic/04 Long Song/guitar.ogg', data: withDuration(guitar, LONG_SONG_MINUTES * 60) },
     { name: 'Test Pack/Classic/05 Secret/song.ini', data: '[song]\nname = Secret\n', flags: 1 },
     { name: 'Test Pack/Classic/05 Secret/notes.mid', data: read('defy', 'notes.mid') },
     { name: '../evil.ini', data: 'x' },

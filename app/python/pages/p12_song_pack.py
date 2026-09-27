@@ -50,4 +50,13 @@ def run(root):
   result["oggStubSize"] = os.path.getsize(ogg)
   result["oggOrigin"] = fs.urlFor(ogg)
   result["oggSeconds"] = fofaudio.duration(audio._load(ogg))
+
+  audio._load(engine.resource.fileName(packLibrary + "/Classic", "03 M\u00f6tley", "song.ogg"))
+  cached = fofaudio.stats().to_py()["cached"]
+  result["cachedSongDirs"] = sorted(set(os.path.dirname(p)[len(root) + 1:] for p in cached if p.startswith(root + "/")))
+
+  result["tooLong"] = {
+    "04 Long Song": Song.isSongTooLong(engine, "04 Long Song", library = packLibrary + "/Classic"),
+    "01 RB Style": Song.isSongTooLong(engine, "01 RB Style", library = rb),
+  }
   return json.dumps(result)

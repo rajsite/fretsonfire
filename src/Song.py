@@ -25,6 +25,7 @@ import Log
 import Audio
 import os
 import re
+import sys
 import shutil
 import Config
 import hashlib
@@ -426,7 +427,7 @@ class Track:
         currentTicks = ticks
 
 class Song(object):
-  def __init__(self, engine, infoFileName, songTrackName, guitarTrackName, rhythmTrackName, noteFileName, scriptFileName = None):
+  def __init__(self, engine, infoFileName, songTrackName, guitarTrackName, rhythmTrackName, noteFileName, scriptFileName = None, drumsTrackName = None):
     self.engine        = engine
     self.info          = SongInfo(infoFileName, noteFileName)
     self.tracks        = [Track() for t in range(len(difficulties))]
@@ -438,11 +439,13 @@ class Song(object):
     self.period        = 0
 
     # load the tracks
+    Audio.prefetch([n for n in (songTrackName, guitarTrackName, rhythmTrackName, drumsTrackName) if n])
     if songTrackName:
       self.music       = Audio.Music(songTrackName)
 
     self.guitarTrack = None
     self.rhythmTrack = None
+    self.drumsTrack  = None
 
     try:
       if guitarTrackName:
@@ -455,6 +458,12 @@ class Song(object):
         self.rhythmTrack = Audio.StreamingSound(self.engine, self.engine.audio.getChannel(2), rhythmTrackName)
     except Exception as e:
       Log.warn("Unable to load rhythm track: %s" % e)
+
+    try:
+      if drumsTrackName:
+        self.drumsTrack = Audio.StreamingSound(self.engine, self.engine.audio.getChannel(3), drumsTrackName)
+    except Exception as e:
+      Log.warn("Unable to load drums track: %s" % e)
 	
     # load the notes
     if noteFileName:
@@ -503,6 +512,9 @@ class Song(object):
     if self.rhythmTrack:
       assert start == 0.0
       self.rhythmTrack.play()
+    if self.drumsTrack:
+      assert start == 0.0
+      self.drumsTrack.play()
     self._playing = True
 
   def pause(self):
@@ -527,6 +539,8 @@ class Song(object):
   
   def setBackgroundVolume(self, volume):
     self.music.setVolume(volume)
+    if self.drumsTrack:
+      self.drumsTrack.setVolume(volume)
   
   def stop(self):
     for track in self.tracks:
@@ -538,6 +552,8 @@ class Song(object):
       self.guitarTrack.stop()
     if self.rhythmTrack:
       self.rhythmTrack.stop()
+    if self.drumsTrack:
+      self.drumsTrack.stop()
     self._playing = False
 
   def fadeout(self, time):
@@ -549,6 +565,8 @@ class Song(object):
       self.guitarTrack.fadeout(time)
     if self.rhythmTrack:
       self.rhythmTrack.fadeout(time)
+    if self.drumsTrack:
+      self.drumsTrack.fadeout(time)
     self._playing = False
 
   def getPosition(self):
@@ -832,6 +850,7 @@ def loadSong(engine, name, library = DEFAULT_LIBRARY, seekable = False, playback
   guitarFile = engine.resource.fileName(library, name, "guitar.ogg")
   songFile   = engine.resource.fileName(library, name, "song.ogg")
   rhythmFile = engine.resource.fileName(library, name, "rhythm.ogg")
+  drumsFile  = engine.resource.fileName(library, name, "drums.ogg")
   noteFile   = engine.resource.fileName(library, name, "notes.mid", writable = True)
   infoFile   = engine.resource.fileName(library, name, "song.ini", writable = True)
   scriptFile = engine.resource.fileName(library, name, "script.txt")
@@ -851,16 +870,27 @@ def loadSong(engine, name, library = DEFAULT_LIBRARY, seekable = False, playback
   
   if not os.path.isfile(rhythmFile):
     rhythmFile = None
+
+  if not os.path.isfile(drumsFile) or playbackOnly:
+    drumsFile = None
   
   if playbackOnly:
     noteFile = None
   
-  song       = Song(engine, infoFile, songFile, guitarFile, rhythmFile, noteFile, scriptFile)
+  song       = Song(engine, infoFile, songFile, guitarFile, rhythmFile, noteFile, scriptFile, drumsFile)
   return song
 
 def loadSongInfo(engine, name, library = DEFAULT_LIBRARY):
   infoFile   = engine.resource.fileName(library, name, "song.ini", writable = True)
   return SongInfo(infoFile, engine.resource.fileName(library, name, "notes.mid"))
+
+def isSongTooLong(engine, name, library = DEFAULT_LIBRARY):
+  """In the browser, songs whose decoded audio would not fit in memory cannot be played."""
+  if sys.platform != "emscripten":
+    return False
+  from fof_web import audio
+  stems = [engine.resource.fileName(library, name, f) for f in ("song.ogg", "guitar.ogg", "rhythm.ogg", "drums.ogg")]
+  return audio.tooLong([f for f in stems if os.path.isfile(f)])
   
 def createSong(engine, name, guitarTrackName, backgroundTrackName, rhythmTrackName = None, library = DEFAULT_LIBRARY):
   path = os.path.abspath(engine.resource.fileName(library, name, writable = True))

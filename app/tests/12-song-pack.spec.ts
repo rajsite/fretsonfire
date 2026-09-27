@@ -1,7 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { waitForResult } from './helpers.ts';
-import { makeTestPack, RB_GUITAR_NOTES } from './fixtures/make-pack.ts';
+import { makeTestPack, withDuration, RB_GUITAR_NOTES } from './fixtures/make-pack.ts';
 import { layoutPack, safeSegments, packName } from '../src/songpack.ts';
+import { oggInfo, SONG_PCM_BUDGET } from '../src/audio.ts';
 import { openZip } from '../src/zip.ts';
 
 const PACK = { name: 'Test Pack.zip', mimeType: 'application/zip', buffer: Buffer.from(makeTestPack()) };
@@ -16,6 +19,8 @@ interface PackResult {
   oggStubSize: number;
   oggOrigin: string;
   oggSeconds: number;
+  cachedSongDirs: string[];
+  tooLong: Record<string, boolean>;
 }
 
 test('pack layout rules', async () => {
@@ -29,7 +34,7 @@ test('pack layout rules', async () => {
 
   const archive = await openZip(new Blob([PACK.buffer]));
   const layout = layoutPack(archive.entries);
-  expect(layout.songs).toEqual(['Classic/03 M\u00f6tley', 'Rock Band/01 RB Style', 'Rock Band/02 Guitar Only']);
+  expect(layout.songs).toEqual(['Classic/03 M\u00f6tley', 'Classic/04 Long Song', 'Rock Band/01 RB Style', 'Rock Band/02 Guitar Only']);
   expect(layout.libraries).toEqual(['']);
   expect(layout.warnings).toEqual(['../evil.ini: unsafe path, skipped', 'Test Pack/Classic/05 Secret/song.ini: encrypted or unsupported compression, skipped']);
   const files = layout.files.map((f) => `${f.path}${f.eager ? ' (eager)' : ''}`).sort();
@@ -39,6 +44,10 @@ test('pack layout rules', async () => {
     'Classic/03 M\u00f6tley/notes.mid (eager)',
     'Classic/03 M\u00f6tley/song.ini (eager)',
     'Classic/03 M\u00f6tley/song.ogg',
+    'Classic/04 Long Song/guitar.ogg',
+    'Classic/04 Long Song/notes.mid (eager)',
+    'Classic/04 Long Song/song.ini (eager)',
+    'Classic/04 Long Song/song.ogg',
     'Rock Band/01 RB Style/drums.ogg',
     'Rock Band/01 RB Style/guitar.ogg',
     'Rock Band/01 RB Style/label.png',
@@ -72,13 +81,26 @@ test('a mounted pack is visible to the game library and song APIs', async ({ pag
   expect(Object.keys(rb).sort()).toEqual(['01 RB Style', '02 Guitar Only']);
   expect(rb['01 RB Style']).toEqual({ name: 'RB Style', difficulties: ['Medium', 'Amazing'] });
   expect(rb['02 Guitar Only'].difficulties).toEqual(['Easy', 'Medium', 'Amazing']);
-  expect(Object.keys(r.libraries['songs/Test Pack/Classic'].songs)).toEqual(['03 M\u00f6tley']);
+  expect(Object.keys(r.libraries['songs/Test Pack/Classic'].songs).sort()).toEqual(['03 M\u00f6tley', '04 Long Song']);
   expect(r.rbGuitarTrack).toBe(3);
   expect(r.rbNotes).toMatchObject({ Amazing: RB_GUITAR_NOTES, Medium: RB_GUITAR_NOTES, Easy: 0 });
   expect(Object.values(r.labels)).toEqual([true, true, true]);
   expect(r.oggStubSize).toBe(0);
   expect(r.oggOrigin).toBe('zip:Test Pack/Rock Band/01 RB Style/Song.ogg');
   expect(r.oggSeconds).toBeGreaterThan(10);
+  expect(r.cachedSongDirs).toEqual(['Classic/03 M\u00f6tley']);
+  expect(r.tooLong).toEqual({ '04 Long Song': true, '01 RB Style': false });
+});
+
+test('Ogg durations are read from headers without decoding', () => {
+  const ogg = new Uint8Array(fs.readFileSync(path.resolve(import.meta.dirname, '../../data/songs/tutorial/guitar.ogg')));
+  const info = oggInfo(ogg)!;
+  expect(info.channels).toBeGreaterThanOrEqual(1);
+  expect(info.seconds).toBeGreaterThan(10);
+  expect(info.seconds).toBeLessThan(300);
+  expect(oggInfo(withDuration(ogg, 7200))!.seconds).toBeCloseTo(7200, 0);
+  expect(oggInfo(new Uint8Array(100))).toBeNull();
+  expect(SONG_PCM_BUDGET).toBe(1 << 30);
 });
 
 async function state(page: Page) {
@@ -90,7 +112,7 @@ test('the start gate takes a song pack and plays a song from it', async ({ page 
   await page.goto(`index.html?arg=--play&arg=${encodeURIComponent('Test Pack/Rock Band/01 RB Style')}`);
   await page.evaluate(() => localStorage.removeItem('fof.songPack'));
   await page.locator('#fof-pack-input').setInputFiles(PACK);
-  await expect(page.locator('#fof-pack-status')).toHaveText('Test Pack: 3 songs, 2 files skipped');
+  await expect(page.locator('#fof-pack-status')).toHaveText('Test Pack: 4 songs, 2 files skipped');
   await page.locator('#fof-start').click();
   await expect.poll(async () => (await state(page)).layers, { timeout: 120_000 }).toContain('GuitarSceneClient');
   const dir = await page.evaluate(() => window.__fof!.runtime!.pyodide.FS.readdir('/game/data/songs/Test Pack/Rock Band/01 RB Style') as string[]);
@@ -98,6 +120,10 @@ test('the start gate takes a song pack and plays a song from it', async ({ page 
 
   await page.keyboard.type('uptomytempo', { delay: 30 });
   await expect.poll(async () => (await state(page)).notesHit ?? 0, { timeout: 60_000 }).toBeGreaterThanOrEqual(10);
+  const stats = await page.evaluate(() => window.__fof!.platform!.audio().stats());
+  // Guitar, rhythm and drums stems play alongside the music.
+  expect(stats.playingSounds).toBeGreaterThanOrEqual(3);
+  expect(stats.cached).toContain('/game/data/songs/Test Pack/Rock Band/01 RB Style/drums.ogg');
 
   await page.goto('index.html');
   await expect(page.locator('#fof-pack-status')).toHaveText('Select Test Pack.zip again to use your song pack');

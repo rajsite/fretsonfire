@@ -1,7 +1,7 @@
 """Web Audio implementation of the game's Audio.py classes (backed by src/audio.ts via the `fofaudio` module)."""
 import os
 
-from pyodide.ffi import run_sync
+from pyodide.ffi import run_sync, to_js
 
 import fofaudio
 import Log
@@ -10,6 +10,17 @@ from Task import Task
 
 def _load(fileName):
   return run_sync(fofaudio.load(os.path.abspath(fileName)))
+
+
+def prefetch(fileNames):
+  """Start decoding these files in parallel; later loads pick up the results."""
+  for fileName in fileNames:
+    fofaudio.prefetch(os.path.abspath(fileName))
+
+
+def tooLong(fileNames):
+  """Whether one song's stems would decode to more memory than the browser version allows."""
+  return bool(run_sync(fofaudio.tooLong(to_js([os.path.abspath(f) for f in fileNames]))))
 
 
 class Audio(Task):
@@ -105,6 +116,12 @@ class Channel(object):
 class Sound(object):
   def __init__(self, fileName):
     self.id = fofaudio.createSound(_load(fileName))
+
+  def __del__(self):
+    try:
+      fofaudio.soundRelease(self.id)
+    except Exception:
+      pass
 
   def play(self, loops = 0):
     fofaudio.soundPlay(self.id, loops, -1)

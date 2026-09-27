@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -30,6 +30,8 @@ from Language import _
 # save chosen song into config file
 Config.define("game", "selected_library",  str, "")
 Config.define("game", "selected_song",     str, "")
+
+TOO_LONG = _("This song is too long for the browser version.")
 
 class SongChoosingScene:
   pass
@@ -62,6 +64,10 @@ class SongChoosingSceneClient(SongChoosingScene, SceneClient):
 
           Config.set("game", "selected_library", self.libraryName)
           Config.set("game", "selected_song",    self.songName)
+
+          if Song.isSongTooLong(self.engine, self.songName, library = self.libraryName):
+            Dialogs.showMessage(self.engine, TOO_LONG)
+            continue
           
           info = Song.loadSongInfo(self.engine, self.songName, library = self.libraryName)
           d = Dialogs.chooseItem(self.engine, info.difficulties,
@@ -70,6 +76,10 @@ class SongChoosingSceneClient(SongChoosingScene, SceneClient):
             self.player.difficulty = d
             break
       else:
+        if Song.isSongTooLong(self.engine, self.songName, library = self.libraryName):
+          Dialogs.showMessage(self.engine, TOO_LONG)
+          self.session.world.finishGame()
+          return
         info = Song.loadSongInfo(self.engine, self.songName, library = self.libraryName)
 
       # Make sure the difficulty we chose is available

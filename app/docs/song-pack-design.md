@@ -177,8 +177,9 @@ These rules turn zip entries into a MEMFS tree under `/game/data/songs/<pack>/`,
   - Tempo is still read from every track.
   - `MidiWriter`, used by the editor, is not changed.
 - **Drums stem (`Song.py`).** When `drums.ogg` exists (and not in preview mode), load it
-  as a `StreamingSound` on channel 3 at the rhythm volume. It plays, pauses, stops and
-  fades with the rhythm track. The engine's shared start time keeps all stems aligned.
+  as a `StreamingSound` on channel 3 at the background (song) volume. It plays, pauses,
+  stops and fades with the other stems. The engine's shared start time keeps all stems
+  aligned.
 - **Missing `song.ogg`.** Already handled: `guitar.ogg` becomes the song and the guitar
   mute has no effect.
 - **Leftover writable songs (`Song.py`).** Writable copies of pack songs persist in IDBFS
