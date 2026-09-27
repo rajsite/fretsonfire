@@ -61,6 +61,76 @@ class MidiTest(unittest.TestCase):
       shutil.rmtree(tmp)
 
 
+def midiFile(tracks, format = 1):
+  """Standard MIDI file bytes; tracks are (name or None, [notes]) with notes played one beat apart."""
+  def varLen(n):
+    out = [n & 0x7f]
+    n >>= 7
+    while n:
+      out.insert(0, 0x80 | (n & 0x7f))
+      n >>= 7
+    return bytes(out)
+  chunks = [b"MThd" + (6).to_bytes(4, "big") + format.to_bytes(2, "big") + len(tracks).to_bytes(2, "big") + (480).to_bytes(2, "big")]
+  for i, (name, notes) in enumerate(tracks):
+    body = b""
+    if i == 0:
+      body += b"\x00\xff\x51\x03" + (500000).to_bytes(3, "big")
+    if name is not None:
+      body += b"\x00\xff\x03" + varLen(len(name)) + name.encode("latin-1")
+    for note in notes:
+      body += varLen(480) + bytes([0x90, note, 100]) + varLen(240) + bytes([0x80, note, 0])
+    body += b"\x00\xff\x2f\x00"
+    chunks.append(b"MTrk" + len(body).to_bytes(4, "big") + body)
+  return b"".join(chunks)
+
+
+class TrackSelectionTest(unittest.TestCase):
+  def load(self, data):
+    tmp = tempfile.mkdtemp()
+    self.addCleanup(shutil.rmtree, tmp)
+    noteFile = os.path.join(tmp, "notes.mid")
+    with open(noteFile, "wb") as f:
+      f.write(data)
+    song = Song.Song(FakeEngine(), songPath("defy", "song.ini"), None, None, None, noteFile)
+    notes = {}
+    for difficulty, track in enumerate(song.tracks):
+      notes[difficulty] = [e.number for t, e in track.allEvents if isinstance(e, Song.Note)]
+    info = Song.SongInfo(songPath("defy", "song.ini"), noteFile)
+    return Song.findGuitarTrack(noteFile), notes, [d.id for d in info.difficulties]
+
+  def testRockBandLayout(self):
+    track, notes, diffs = self.load(midiFile([
+      ("rawksd", []),
+      ("PART DRUMS", [0x60, 0x60, 0x48]),
+      ("PART BASS", [0x3c]),
+      ("PART GUITAR", [0x61, 0x62, 0x54]),
+      ("EVENTS", []),
+    ]))
+    self.assertEqual(track, 3)
+    self.assertEqual(notes[Song.AMAZING_DIFFICULTY], [1, 2])
+    self.assertEqual(notes[Song.MEDIUM_DIFFICULTY], [0])
+    self.assertEqual(notes[Song.EASY_DIFFICULTY], [])
+    self.assertEqual(diffs, [Song.MEDIUM_DIFFICULTY, Song.AMAZING_DIFFICULTY])
+
+  def testLegacyTrackNames(self):
+    track, notes, _ = self.load(midiFile([("song", []), ("t1 gems", [0x60]), ("TRIGGERS", [0x61])]))
+    self.assertEqual(track, 1)
+    self.assertEqual(notes[Song.AMAZING_DIFFICULTY], [0])
+
+  def testUnnamedFallsBackToFirstTracks(self):
+    track, notes, diffs = self.load(midiFile([(None, [0x60]), ("", [0x54]), (None, [0x48])]))
+    self.assertIsNone(track)
+    self.assertEqual(notes[Song.AMAZING_DIFFICULTY], [0])
+    self.assertEqual(notes[Song.MEDIUM_DIFFICULTY], [0])
+    self.assertEqual(notes[Song.EASY_DIFFICULTY], [])
+    self.assertEqual(diffs, [Song.MEDIUM_DIFFICULTY, Song.AMAZING_DIFFICULTY])
+
+  def testFormatZero(self):
+    track, notes, _ = self.load(midiFile([(None, [0x60, 0x61])], format = 0))
+    self.assertIsNone(track)
+    self.assertEqual(notes[Song.AMAZING_DIFFICULTY], [0, 1])
+
+
 class HighscoreTest(unittest.TestCase):
   def testCerealizerFormat(self):
     data = {1: [(1000, 3, "Player \u00e4", "abc")]}

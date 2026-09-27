@@ -127,7 +127,7 @@ class SongInfo(object):
     # See which difficulties are available
     try:
       noteFileName = self.noteFileName
-      info = MidiInfoReader()
+      info = MidiInfoReader(findGuitarTrack(noteFileName))
       midiIn = midi.MidiInFile(info, noteFileName)
       try:
         midiIn.read()
@@ -458,7 +458,7 @@ class Song(object):
 	
     # load the notes
     if noteFileName:
-      midiIn = midi.MidiInFile(MidiReader(self), noteFileName)
+      midiIn = midi.MidiInFile(MidiReader(self, findGuitarTrack(noteFileName)), noteFileName)
       midiIn.read()
 
     # load the script
@@ -673,10 +673,71 @@ class ScriptReader:
       for track in self.song.tracks:
         track.addEvent(time, event)
 
+# Track names of the guitar part in Rock Band / Guitar Hero style MIDI files.
+GUITAR_TRACK_NAMES = ("PART GUITAR", "T1 GEMS")
+
+def _readVarLen(data, pos):
+  value = 0
+  while pos < len(data):
+    b = data[pos]
+    pos += 1
+    value = (value << 7) | (b & 0x7f)
+    if not b & 0x80:
+      break
+  return value, pos
+
+def _trackName(body):
+  """The first track name meta event before any channel message, or None."""
+  pos, running = 0, 0
+  while pos < len(body):
+    _, pos = _readVarLen(body, pos)
+    if pos >= len(body):
+      break
+    status = body[pos]
+    if status & 0x80:
+      pos += 1
+    else:
+      status = running
+    if status == 0xff:
+      kind = body[pos]
+      length, pos = _readVarLen(body, pos + 1)
+      if kind == 0x03:
+        return body[pos:pos + length].decode("latin-1")
+      pos += length
+    elif status in (0xf0, 0xf7):
+      length, pos = _readVarLen(body, pos)
+      pos += length
+    else:
+      return None
+  return None
+
+def findGuitarTrack(noteFileName):
+  """Index of the track named as the guitar part, or None for files without named parts."""
+  with open(noteFileName, "rb") as f:
+    data = f.read()
+  pos, index = 0, 0
+  while pos + 8 <= len(data):
+    tag = data[pos:pos + 4]
+    length = int.from_bytes(data[pos + 4:pos + 8], "big")
+    body = data[pos + 8:pos + 8 + length]
+    pos += 8 + length
+    if tag != b"MTrk":
+      continue
+    name = _trackName(body)
+    if name is not None and name.strip().upper() in GUITAR_TRACK_NAMES:
+      return index
+    index += 1
+  return None
+
+def _isGuitarTrack(track, guitarTrack):
+  # Legacy Frets on Fire files keep the notes in the first two tracks.
+  return track == guitarTrack if guitarTrack is not None else track <= 1
+
 class MidiReader(midi.MidiOutStream):
-  def __init__(self, song):
+  def __init__(self, song, guitarTrack = None):
     midi.MidiOutStream.__init__(self)
     self.song = song
+    self.guitarTrack = guitarTrack
     self.heldNotes = {}
     self.velocity  = {}
     self.ticksPerBeat = 480
@@ -724,12 +785,12 @@ class MidiReader(midi.MidiOutStream):
     self.addEvent(None, Tempo(bpm))
 
   def note_on(self, channel, note, velocity):
-    if self.get_current_track() > 1: return
+    if not _isGuitarTrack(self.get_current_track(), self.guitarTrack): return
     self.velocity[note] = velocity
     self.heldNotes[(self.get_current_track(), channel, note)] = self.abs_time()
 
   def note_off(self, channel, note, velocity):
-    if self.get_current_track() > 1: return
+    if not _isGuitarTrack(self.get_current_track(), self.guitarTrack): return
     try:
       startTime = self.heldNotes[(self.get_current_track(), channel, note)]
       endTime   = self.abs_time()
@@ -747,11 +808,13 @@ class MidiInfoReader(midi.MidiOutStream):
   # We exit via this exception so that we don't need to read the whole file in
   class Done(Exception): pass
   
-  def __init__(self):
+  def __init__(self, guitarTrack = None):
     midi.MidiOutStream.__init__(self)
+    self.guitarTrack = guitarTrack
     self.difficulties = []
 
   def note_on(self, channel, note, velocity):
+    if not _isGuitarTrack(self.get_current_track(), self.guitarTrack): return
     try:
       track, number = noteMap[note]
       diff = difficulties[track]

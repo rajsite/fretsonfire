@@ -117,8 +117,8 @@ class MidiFileParser:
                 meta_type = raw_in.readBew()
                 meta_length = raw_in.readVarLen()
                 meta_data = raw_in.nextSlice(meta_length)
-                if not meta_length: return
-                dispatch.meta_event(meta_type, meta_data)
+                if meta_length:
+                    dispatch.meta_event(meta_type, meta_data)
                 if meta_type == END_OF_TRACK: return
 
 
