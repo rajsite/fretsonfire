@@ -4,10 +4,10 @@
 import sys
 from types import StringType
 from struct import unpack
-from cStringIO import StringIO
+from io import StringIO
 
 # custom import
-from DataTypeConverters import writeBew, writeVar, fromBytes
+from .DataTypeConverters import writeBew, writeVar, fromBytes
 
 class RawOutstreamFile:
     

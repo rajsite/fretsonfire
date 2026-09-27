@@ -62,7 +62,7 @@ def ToFloat2(stringValue, errorText=''):
 	try:
 		return [ float( split[ 0 ] ), float( split[ 1 ] )]
 	except IndexError:
-		print 'Error: ' + errorText
+		print('Error: ' + errorText)
 		raise
 
 def ToList(var):
@@ -305,7 +305,7 @@ def __ToXml(xmlNode, indent='\t',newl='\n',totalIndent=''):
 		attrs = ''
 		attributes = xmlNode.attributes
 		if attributes != None:
-			for attr in attributes.keys():
+			for attr in list(attributes.keys()):
 				val = attributes[attr].nodeValue
 				attrs += ' %s="%s"'%(attr,val)
 		result = '%s<%s%s>'%(totalIndent,xmlNode.localName,attrs)

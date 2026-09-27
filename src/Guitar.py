@@ -538,7 +538,7 @@ class Guitar:
         chords[time] = []
       chords[time].append((time, note))
 
-    for notes in chords.values():
+    for notes in list(chords.values()):
       # matching keys?
       requiredKeys = [note.number for time, note in notes]
 

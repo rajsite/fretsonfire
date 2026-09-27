@@ -20,7 +20,7 @@
 # MA  02110-1301, USA.                                              #
 #####################################################################
 
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 import Log
 import Resource
 import os
@@ -32,7 +32,7 @@ prototype = {}
 class Option:
   """A prototype configuration key."""
   def __init__(self, **args):
-    for key, value in args.items():
+    for key, value in list(args.items()):
       setattr(self, key, value)
       
 def define(section, option, type, default = None, text = None, options = None, prototype = prototype):
@@ -85,10 +85,10 @@ class Config:
     self.fileName  = fileName
   
     # fix the defaults and non-existing keys
-    for section, options in prototype.items():
+    for section, options in list(prototype.items()):
       if not self.config.has_section(section):
         self.config.add_section(section)
-      for option in options.keys():
+      for option in list(options.keys()):
         type    = options[option].type
         default = options[option].default
         if not self.config.has_option(section, option):
@@ -138,7 +138,7 @@ class Config:
     if not self.config.has_section(section):
       self.config.add_section(section)
 
-    if type(value) == unicode:
+    if type(value) == str:
       value = value.encode(encoding)
     else:
       value = str(value)

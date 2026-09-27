@@ -31,12 +31,12 @@ import Language
 import Config
 
 # these constants define a few customized letters in the default font
-STAR1 = unicode('\x10')
-STAR2 = unicode('\x11')
-LEFT  = unicode('\x12')
-RIGHT = unicode('\x13')
-BALL1 = unicode('\x14')
-BALL2 = unicode('\x15')
+STAR1 = str('\x10')
+STAR2 = str('\x11')
+LEFT  = str('\x12')
+RIGHT = str('\x13')
+BALL1 = str('\x14')
+BALL2 = str('\x15')
 
 class Data(object):
   """A collection of globally used data resources such as fonts and sound effects."""
@@ -136,4 +136,4 @@ class Data(object):
 
   def resourcesLoaded(self):
     """return: True if all the resources have been loaded."""
-    return not None in self.__dict__.values()
+    return not None in list(self.__dict__.values())

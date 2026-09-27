@@ -28,7 +28,7 @@ from Task import Task
 from Player import Controls
 
 class KeyListener:
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     pass
     
   def keyReleased(self, key):
@@ -186,8 +186,8 @@ class Input(Task):
     pygame.event.pump()
     for event in pygame.event.get():
       if event.type == pygame.KEYDOWN:
-        if not self.broadcastEvent(self.priorityKeyListeners, "keyPressed", event.key, event.unicode):
-          self.broadcastEvent(self.keyListeners, "keyPressed", event.key, event.unicode)
+        if not self.broadcastEvent(self.priorityKeyListeners, "keyPressed", event.key, event.str):
+          self.broadcastEvent(self.keyListeners, "keyPressed", event.key, event.str)
       elif event.type == pygame.KEYUP:
         if not self.broadcastEvent(self.priorityKeyListeners, "keyReleased", event.key):
           self.broadcastEvent(self.keyListeners, "keyReleased", event.key)
@@ -205,8 +205,8 @@ class Input(Task):
         self.broadcastEvent(self.systemListeners, "musicFinished")
       elif event.type == pygame.JOYBUTTONDOWN: # joystick buttons masquerade as keyboard events
         id = self.encodeJoystickButton(event.joy, event.button)
-        if not self.broadcastEvent(self.priorityKeyListeners, "keyPressed", id, u'\x00'):
-          self.broadcastEvent(self.keyListeners, "keyPressed", id, u'\x00')
+        if not self.broadcastEvent(self.priorityKeyListeners, "keyPressed", id, '\x00'):
+          self.broadcastEvent(self.keyListeners, "keyPressed", id, '\x00')
       elif event.type == pygame.JOYBUTTONUP:
         id = self.encodeJoystickButton(event.joy, event.button)
         if not self.broadcastEvent(self.priorityKeyListeners, "keyReleased", id):
@@ -220,11 +220,11 @@ class Input(Task):
           if event.value > threshold and state != 1:
             self.joystickAxes[event.joy][event.axis] = 1
             keyEvent = "keyPressed"
-            args     = (self.encodeJoystickAxis(event.joy, event.axis, 1), u'\x00')
+            args     = (self.encodeJoystickAxis(event.joy, event.axis, 1), '\x00')
             state    = 1
           elif event.value < -threshold and state != -1:
             keyEvent = "keyPressed"
-            args     = (self.encodeJoystickAxis(event.joy, event.axis, 0), u'\x00')
+            args     = (self.encodeJoystickAxis(event.joy, event.axis, 0), '\x00')
             state    = -1
           elif state != 0:
             keyEvent = "keyReleased"
@@ -245,7 +245,7 @@ class Input(Task):
           if event.value != (0, 0) and state == (0, 0):
             self.joystickHats[event.joy][event.hat] = event.value
             keyEvent = "keyPressed"
-            args     = (self.encodeJoystickHat(event.joy, event.hat, event.value), u'\x00')
+            args     = (self.encodeJoystickHat(event.joy, event.hat, event.value), '\x00')
             state    = event.value
           else:
             keyEvent = "keyReleased"

@@ -285,7 +285,7 @@ class GuitarSceneClient(GuitarScene, SceneClient):
       self.session.world.deleteScene(self)
       self.session.world.createScene("GameResultsScene", libraryName = self.libraryName, songName = self.songName)
 
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     control = self.controls.keyPressed(key)
 
     if control in (Player.ACTION1, Player.ACTION2):

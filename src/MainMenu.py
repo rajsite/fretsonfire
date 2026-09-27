@@ -105,13 +105,13 @@ class MainMenu(BackgroundLayer):
           import traceback
           traceback.print_exc()
           raise
-      except socket.error, e:
-        Dialogs.showMessage(self.engine, unicode(e[1]))
+      except socket.error as e:
+        Dialogs.showMessage(self.engine, str(e[1]))
       except KeyboardInterrupt:
         pass
-      except Exception, e:
+      except Exception as e:
         if e:
-          Dialogs.showMessage(self.engine, unicode(e))
+          Dialogs.showMessage(self.engine, str(e))
     return harness
 
   def launchLayer(self, layerFunc):

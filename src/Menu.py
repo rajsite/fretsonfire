@@ -33,7 +33,7 @@ import Player
 
 class Choice:
   def __init__(self, text, callback, values = None, valueIndex = 0):
-    self.text       = unicode(text)
+    self.text       = str(text)
     self.callback   = callback
     self.values     = values
     self.valueIndex = valueIndex
@@ -119,7 +119,7 @@ class Menu(Layer, KeyListener):
     if self.currentIndex < self.viewOffset:
       self.viewOffset = self.currentIndex
     
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     self.time = 0
     choice = self.choices[self.currentIndex]
     c = self.engine.input.controls.getMapping(key)

@@ -141,7 +141,7 @@ class Font:
       if len(text) > 5:
         # Limit the cache size
         if len(self.stringCache) > self.stringCacheLimit:
-          del self.stringCache[self.stringCache.keys()[0]]
+          del self.stringCache[list(self.stringCache.keys())[0]]
         self.stringCache[(text, scale)] = cacheEntry
     else:
       cacheEntry = self.stringCache[(text, scale)]

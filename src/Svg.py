@@ -170,14 +170,14 @@ class SvgRenderStyle:
 
   def __cmp__(self, s):
     if s:
-      for k, v in self.__dict__.items():
+      for k, v in list(self.__dict__.items()):
         if v != getattr(s, k):
           return 1
       return 0
     return 1
 
   def __repr__(self):
-    return "<SvgRenderStyle " + " ".join(["%s:%s" % (k, v) for k, v in self.__dict__.items()]) + ">"
+    return "<SvgRenderStyle " + " ".join(["%s:%s" % (k, v) for k, v in list(self.__dict__.items())]) + ">"
 
   def applyAttributes(self, attrs, defs):
     style = attrs.get("style")

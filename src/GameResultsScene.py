@@ -65,8 +65,8 @@ class GameResultsSceneClient(GameResultsScene, SceneClient):
     self.engine.loadSvgDrawing(self, "background", "keyboard.svg")
     Dialogs.showLoadingScreen(self.engine, lambda: self.song, text = _("Chilling..."))
     
-  def keyPressed(self, key, unicode):
-    ret = SceneClient.keyPressed(self, key, unicode)
+  def keyPressed(self, key, str):
+    ret = SceneClient.keyPressed(self, key, str)
 
     c = self.controls.keyPressed(key)
     if self.song and (c in [Player.KEY1, Player.KEY2, Player.CANCEL, Player.ACTION1, Player.ACTION2] or key == pygame.K_RETURN):
@@ -188,8 +188,8 @@ class GameResultsSceneClient(GameResultsScene, SceneClient):
           else:
             Theme.setBaseColor(1 - v)
           font.render("%d." % (i + 1), (x, y),    scale = scale)
-          font.render(unicode(score), (x + .05, y),   scale = scale)
-          font.render(unicode(Data.STAR2 * stars + Data.STAR1 * (5 - stars)), (x + .25, y), scale = scale * .9)
+          font.render(str(score), (x + .05, y),   scale = scale)
+          font.render(str(Data.STAR2 * stars + Data.STAR1 * (5 - stars)), (x + .25, y), scale = scale * .9)
           font.render(name, (x + .5, y), scale = scale)
           y += h
           

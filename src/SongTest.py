@@ -69,7 +69,7 @@ class SongTest(unittest.TestCase):
         t2, n2 = event[1]
         
         if "-v" in sys.argv:
-          print "%8d. %.3f + %.3f\t%2d\t     %.3f + %.3f\t%2d" % (i, t1, n1.length, n1.number, t2, n2.length, n2.number)
+          print("%8d. %.3f + %.3f\t%2d\t     %.3f + %.3f\t%2d" % (i, t1, n1.length, n1.number, t2, n2.length, n2.number))
         
         # Allow 2ms of rounding error
         assert abs(t1 - t2) < 2

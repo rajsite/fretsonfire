@@ -24,7 +24,7 @@ import asyncore
 import socket
 import struct
 import time
-import StringIO
+import io
 
 import Log
 
@@ -70,7 +70,7 @@ class Connection(asyncore.dispatcher):
     self._buffer = []
     self._sentSizeField = False
     self._receivedSizeField = 0
-    self._packet = StringIO.StringIO()
+    self._packet = io.StringIO()
 
     if not sock:
       self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -128,7 +128,7 @@ class Connection(asyncore.dispatcher):
             self.handlePacket(self._packet.getvalue())
           self._packet.truncate()
           self._packet.seek(0)
-    except socket.error, e:
+    except socket.error as e:
       Log.error("Socket error while receiving: %s" % str(e))
 
   def writable(self):
@@ -168,7 +168,7 @@ class Connection(asyncore.dispatcher):
       else:
         self._buffer = self._buffer[1:]
         self._sentSizeField = False
-    except socket.error, e:
+    except socket.error as e:
       Log.error("Socket error while sending: %s" % str(e))
 
 class Server(asyncore.dispatcher):
@@ -201,7 +201,7 @@ class Server(asyncore.dispatcher):
     self.handle_close()
 
   def handleClose(self):
-    for c in self.clients.values():
+    for c in list(self.clients.values()):
       c.close()
 
   def handle_close(self):
@@ -212,11 +212,11 @@ class Server(asyncore.dispatcher):
       del self.clients[connection.id]
 
   def broadcastPacket(self, packet, ignore = [], meToo = True):
-    for c in self.clients.values():
+    for c in list(self.clients.values()):
       if not c.id in ignore:
         c.sendPacket(packet)
     if meToo:
-      self.clients.values()[0].handlePacket(packet)
+      list(self.clients.values())[0].handlePacket(packet)
 
   def sendPacket(self, receiverId, packet):
     self.clients[receiverId].sendPacket(packet)

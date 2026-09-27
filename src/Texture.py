@@ -20,15 +20,15 @@
 # MA  02110-1301, USA.                                              #
 #####################################################################
 
-from __future__ import division
+
 
 import Log
 import Config
 import pygame
-import StringIO
+import io
 from OpenGL.GL import *
 from OpenGL.GLU import *
-from Queue import Queue, Empty
+from queue import Queue, Empty
 
 try:
   from PIL import Image

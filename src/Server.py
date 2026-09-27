@@ -23,7 +23,7 @@
 import Network
 import Engine
 import Log
-import cPickle as pickle
+import pickle as pickle
 
 from Session import ServerSession, MessageBroker
 from World import WorldServer
@@ -54,7 +54,7 @@ class Server(Network.Server, Engine.Task):
       pass
 
   def broadcastMessage(self, message, meToo = True, ignore = []):
-    for id, session in self.sessions.items():
+    for id, session in list(self.sessions.items()):
       if id in ignore: continue
       session.sendMessage(message)
     if meToo:

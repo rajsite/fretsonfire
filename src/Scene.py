@@ -107,7 +107,7 @@ class SceneClient(Scene, KeyListener):
   def hidden(self):
     self.engine.input.removeKeyListener(self)
 
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     c = self.controls.keyPressed(key)
     if c:
       self.session.sendMessage(ControlEvent(flags = self.controls.flags))
@@ -200,7 +200,7 @@ class SceneServer(Scene):
       id = self.objects.id(actor)
       self.server.broadcastMessage(ActorData(id = id, data = actor.getState()), meToo = False)
 
-    for sender, flags in self.changedControlData.items():
+    for sender, flags in list(self.changedControlData.items()):
       self.server.broadcastMessage(ControlData(owner = sender, flags = flags))
     self.changedControlData = {}
 

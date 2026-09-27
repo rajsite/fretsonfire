@@ -206,7 +206,7 @@ class Credits(Layer, KeyListener):
   def quit(self):
     self.engine.view.popLayer(self)
 
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     if self.engine.input.controls.getMapping(key) in [Player.CANCEL, Player.KEY1, Player.KEY2] or key == pygame.K_RETURN:
       self.songLoader.cancel()
       self.quit()

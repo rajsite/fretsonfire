@@ -41,7 +41,7 @@ class NetworkTest(unittest.TestCase):
     c.sendPacket("moikka")
 
     Network.communicate(100)
-    client = s.clients.values()[0]
+    client = list(s.clients.values())[0]
     assert client.packet == "moikka"
     assert client.id == 1
 

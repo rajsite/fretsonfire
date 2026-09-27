@@ -20,7 +20,7 @@
 # MA  02110-1301, USA.                                              #
 #####################################################################
 
-from __future__ import division
+
 from OpenGL.GL import *
 from OpenGL.GLU import *
 

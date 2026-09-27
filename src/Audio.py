@@ -379,7 +379,7 @@ if "ogg.vorbis" in sys.modules:
       # Decode enough that we have at least one full sound buffer
       # ready in the queue if possible
       while not self.done:
-        for i in xrange(self.decodingRate):
+        for i in range(self.decodingRate):
           soundBuffer = self._decodeStream()
           if soundBuffer:
             self.buffersOut.insert(0, soundBuffer)

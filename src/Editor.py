@@ -111,7 +111,7 @@ class Editor(Layer, KeyListener):
       self.modified = True
 
   def setAVDelay(self):
-    delay = Dialogs.getText(self.engine, _("Enter A/V delay in milliseconds"), unicode(self.song.info.delay))
+    delay = Dialogs.getText(self.engine, _("Enter A/V delay in milliseconds"), str(self.song.info.delay))
     if delay:
       try:
         self.song.info.delay = int(delay)
@@ -120,7 +120,7 @@ class Editor(Layer, KeyListener):
         Dialogs.showMessage(self.engine, _("That isn't a number."))
 
   def setBpm(self):
-    bpm = Dialogs.getText(self.engine, _("Enter Beats per Minute Value"), unicode(self.song.bpm))
+    bpm = Dialogs.getText(self.engine, _("Enter Beats per Minute Value"), str(self.song.bpm))
     if bpm:
       try:
         self.song.setBpm(float(bpm))
@@ -211,17 +211,17 @@ class Editor(Layer, KeyListener):
     self.engine.view.popLayer(self)
     self.engine.view.popLayer(self.menu)
 
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     c = self.engine.input.controls.getMapping(key)
     if c == Player.CANCEL:
       self.engine.view.pushLayer(self.menu)
     elif key == pygame.K_PAGEDOWN and self.song:
       d = self.song.difficulty
-      v = difficulties.values()
+      v = list(difficulties.values())
       self.song.difficulty = v[(v.index(d) + 1) % len(v)]
     elif key == pygame.K_PAGEUP and self.song:
       d = self.song.difficulty
-      v = difficulties.values()
+      v = list(difficulties.values())
       self.song.difficulty = v[(v.index(d) - 1) % len(v)]
     elif key == pygame.K_DELETE and self.song:
       # gather up all events that intersect the cursor and delete the ones on the selected string
@@ -338,7 +338,7 @@ class Editor(Layer, KeyListener):
       t = "%d.%02d'%03d" % (self.pos / 60000, (self.pos % 60000) / 1000, self.pos % 1000)
       font.render(t, (.05, .05 - h / 2))
       font.render(status, (.05, .05 + h / 2))
-      font.render(unicode(self.song.difficulty), (.05, .05 + 3 * h / 2))
+      font.render(str(self.song.difficulty), (.05, .05 + 3 * h / 2))
 
       Theme.setBaseColor()
       text = self.song.info.name + (self.modified and "*" or "")
@@ -688,7 +688,7 @@ class GHImporter(Layer):
       vgsMap  = {}
       library = DEFAULT_LIBRARY
       for line in open(self.engine.resource.fileName("ghmidimap.txt")):
-        fields = map(lambda s: s.strip(), line.strip().split(";"))
+        fields = [s.strip() for s in line.strip().split(";")]
         if fields[0] == "$library":
           library = os.path.join(DEFAULT_LIBRARY, fields[1])
         else:
@@ -700,7 +700,7 @@ class GHImporter(Layer):
       songs    = []
 
       # Filter out the songs that aren't in this archive
-      for songName, data in songMap.items():
+      for songName, data in list(songMap.items()):
         library, fullName, artist = data
         songPath = self.engine.resource.fileName(library, songName, writable = True)
 
@@ -717,10 +717,10 @@ class GHImporter(Layer):
           del songMap[songName]
           continue
 
-      for songName, data in songMap.items():
+      for songName, data in list(songMap.items()):
         library, fullName, artist = data
         songPath = self.engine.resource.fileName(library, songName, writable = True)
-        print songPath
+        print(songPath)
 
         Log.notice("Extracting song '%s'" % songName)
         self.statusText = _("Extracting %s by %s. %d of %d songs imported. Yeah, this is going to take forever.") % (fullName, artist, len(songs), len(songMap))

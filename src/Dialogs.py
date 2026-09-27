@@ -116,7 +116,7 @@ class GetText(Layer, KeyListener):
     self.engine.input.removeKeyListener(self)
     self.engine.input.disableKeyRepeat()
     
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     self.time = 0
     c = self.engine.input.controls.getMapping(key)
     if (c in [Player.KEY1] or key == pygame.K_RETURN) and not self.accepted:
@@ -128,8 +128,8 @@ class GetText(Layer, KeyListener):
       self.accepted = True
     elif key == pygame.K_BACKSPACE and not self.accepted:
       self.text = self.text[:-1]
-    elif unicode and ord(unicode) > 31 and not self.accepted:
-      self.text += str(unicode)
+    elif str and ord(str) > 31 and not self.accepted:
+      self.text += str(str)
     return True
     
   def run(self, ticks):
@@ -176,7 +176,7 @@ class GetKey(Layer, KeyListener):
   def hidden(self):
     self.engine.input.removeKeyListener(self)
     
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     c = self.engine.input.controls.getMapping(key)
     if c in [Player.CANCEL, Player.KEY2] and not self.accepted:
       self.key = None
@@ -225,7 +225,7 @@ class LoadingScreen(Layer, KeyListener):
   def shown(self):
     self.engine.input.addKeyListener(self, priority = True)
 
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     c = self.engine.input.controls.getMapping(key)
     if self.allowCancel and c == Player.CANCEL:
       self.engine.view.popLayer(self)
@@ -284,7 +284,7 @@ class MessageScreen(Layer, KeyListener):
   def shown(self):
     self.engine.input.addKeyListener(self, priority = True)
 
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     c = self.engine.input.controls.getMapping(key)
     if c in [Player.KEY1, Player.KEY2, Player.CANCEL] or key == pygame.K_RETURN:
       self.engine.view.popLayer(self)
@@ -430,7 +430,7 @@ class SongChooser(Layer, KeyListener):
     self.songCountdown = 1024
     self.loadItemLabel(self.selectedIndex)
     
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     if not self.items or self.accepted:
       return
 
@@ -510,8 +510,8 @@ class SongChooser(Layer, KeyListener):
         self.items.sort(key=lambda l: (l.name.lower()))
     elif key == pygame.K_TAB:
       self.cassetteShow = not self.cassetteShow
-    elif unicode and ord(unicode) > 31 and not self.accepted:
-      self.searchText += str(unicode)
+    elif str and ord(str) > 31 and not self.accepted:
+      self.searchText += str(str)
       self.doSearch()
     return True
 
@@ -858,10 +858,10 @@ class SongChooser(Layer, KeyListener):
             else:
               score, stars, name = "---", 0, "---"
             Theme.setBaseColor(1 - v)
-            font.render(unicode(d),     (x, y),           scale = scale)
-            font.render(unicode(Data.STAR2 * stars + Data.STAR1 * (5 - stars)), (x, y + h), scale = scale * .9)
+            font.render(str(d),     (x, y),           scale = scale)
+            font.render(str(Data.STAR2 * stars + Data.STAR1 * (5 - stars)), (x, y + h), scale = scale * .9)
             Theme.setSelectedColor(1 - v)
-            font.render(unicode(score), (x + .15, y),     scale = scale)
+            font.render(str(score), (x + .15, y),     scale = scale)
             font.render(name,       (x + .15, y + h),     scale = scale)
             y += 2 * h + f / 4.0
         elif isinstance(item, Song.LibraryInfo):
@@ -1061,7 +1061,7 @@ class BpmEstimator(Layer, KeyListener):
     self.engine.input.removeKeyListener(self)
     self.song.fadeout(1000)
     
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     if self.accepted:
       return True
       
@@ -1122,7 +1122,7 @@ class KeyTester(Layer, KeyListener):
   def hidden(self):
     self.engine.input.removeKeyListener(self)
     
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     if self.accepted:
       return True
 

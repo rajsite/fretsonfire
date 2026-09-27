@@ -80,7 +80,7 @@ class FullScreenSwitcher(KeyListener):
     self.engine = engine
     self.altStatus = False
   
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     if key == pygame.K_LALT:
       self.altStatus = True
     elif key == pygame.K_RETURN and self.altStatus:
@@ -362,7 +362,7 @@ class GameEngine(Engine):
       sys.exit(0)
     except SystemExit:
       sys.exit(0)
-    except Exception, e:
+    except Exception as e:
       def clearMatrixStack(stack):
         try:
           glMatrixMode(stack)
@@ -383,6 +383,6 @@ class GameEngine(Engine):
       clearMatrixStack(GL_PROJECTION)
       clearMatrixStack(GL_MODELVIEW)
       
-      Dialogs.showMessage(self, unicode(e))
+      Dialogs.showMessage(self, str(e))
       self.handlingException = False
       return True

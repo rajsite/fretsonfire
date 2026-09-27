@@ -40,7 +40,7 @@ class ConfigChoice(Menu.Choice):
     o = config.prototype[section][option]
     v = config.get(section, option)
     if isinstance(o.options, dict):
-      values     = o.options.values()
+      values     = list(o.options.values())
       values.sort()
       try:
         valueIndex = values.index(o.options[v])
@@ -60,7 +60,7 @@ class ConfigChoice(Menu.Choice):
     o = self.config.prototype[self.section][self.option]
     
     if isinstance(o.options, dict):
-      for k, v in o.options.items():
+      for k, v in list(o.options.items()):
         if v == value:
           value = k
           break
@@ -110,7 +110,7 @@ class KeyConfigChoice(Menu.Choice):
     o = self.config.prototype[self.section][self.option]
 
     if isinstance(o.options, dict):
-      for k, v in o.options.items():
+      for k, v in list(o.options.items()):
         if v == value:
           value = k
           break

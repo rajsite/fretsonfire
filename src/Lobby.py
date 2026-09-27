@@ -74,7 +74,7 @@ class Lobby(Layer, KeyListener, MessageHandler):
     self.engine.addTask(GameTask(self.engine, self.session))
     self.engine.view.popLayer(self)
 
-  def keyPressed(self, key, unicode):
+  def keyPressed(self, key, str):
     c = self.engine.input.controls.getMapping(key)
     if c in [Player.CANCEL, Player.KEY2]:
       self.engine.view.popLayer(self)
