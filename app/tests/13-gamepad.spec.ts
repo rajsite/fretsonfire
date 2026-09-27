@@ -42,6 +42,23 @@ test('guitar profiles normalize to frets 0-4, select 8, start 9 and a strum hat'
   expect(describePad(pad('Xbox 360 Guitar (XInput STANDARD GAMEPAD)', 'standard', [], []))).toBe('Xbox 360 Guitar');
 });
 
+test('PS3 Rock Band guitar on Android uses its own layout', () => {
+  // Layout recorded in Chrome on Android: lower frets G R Y B O read as 1+4, 4, 2+4, 0+4, 3+4.
+  const id = 'Licensed by Sony Computer Entertainment America Harmonix Guitar for PlayStation (Vendor: 12ba Product: 0200)';
+  const android = (pressed: number[]) => normalizePad(pad(id, '', pressed, [0, 0, -0.003922, 0], 17), new Set());
+  const frets = (pressed: number[]) => android(pressed).buttons.slice(0, 5);
+  expect(android([]).profile).toBe('Harmonix Guitar (PS3, Android)');
+  expect(frets([1, 4])).toEqual([true, false, false, false, false]);
+  expect(frets([4])).toEqual([false, true, false, false, false]);
+  expect(frets([2, 4])).toEqual([false, false, true, false, false]);
+  expect(frets([0, 4])).toEqual([false, false, false, true, false]);
+  expect(frets([3])).toEqual([false, false, false, false, true]);
+  expect(android([6]).buttons[8]).toBe(true);
+  expect(android([7]).buttons[9]).toBe(true);
+  expect(android([12]).hats).toEqual([[0, 1]]);
+  expect(android([13]).hats).toEqual([[0, -1]]);
+});
+
 test('unknown gamepads pass through, with POV axes turned into hats', () => {
   const povAxes = new Set<number>();
   const first = normalizePad(pad('Some pad', '', [2], [0.5, POV_CENTER], 4), povAxes);

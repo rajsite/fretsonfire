@@ -53,11 +53,32 @@ interface Profile {
 
 const pressed = (pad: PadInput, i: number) => !!pad.buttons[i]?.pressed;
 
+const isRockBandPs3 = (pad: PadInput) => /12ba\D{0,12}0200/i.test(pad.id);
+
 const PROFILES: Profile[] = [
+  {
+    // Rock Band guitar for PS3 in Chrome on Android: frets G Y B O on buttons 1 2 0 3, solo frets add button 4,
+    // select 6, start 7, strum on the d-pad. Android reports red as BUTTON_C, which Chrome drops, so only the
+    // lower red fret registers, as the solo modifier with no other fret held.
+    name: 'Harmonix Guitar (PS3, Android)',
+    matches: (pad) => isRockBandPs3(pad) && pad.axes.length < 10 && pad.buttons.length > 15,
+    normalize(pad) {
+      const [green, yellow, blue, orange] = [1, 2, 0, 3].map((b) => pressed(pad, b));
+      const red = pressed(pad, 4) && !(green || yellow || blue || orange);
+      const x = (pressed(pad, 15) ? 1 : 0) - (pressed(pad, 14) ? 1 : 0);
+      const y = (pressed(pad, 12) ? 1 : 0) - (pressed(pad, 13) ? 1 : 0);
+      return {
+        profile: this.name,
+        buttons: guitar([green, red, yellow, blue, orange], pressed(pad, 6), pressed(pad, 7)),
+        axes: [],
+        hats: [[x, y]],
+      };
+    },
+  },
   {
     // Rock Band guitar for PS3: frets G R Y B O on buttons 1 2 3 0 4, solo frets add button 6, strum on the POV (axis 9).
     name: 'Harmonix Guitar (PS3)',
-    matches: (pad) => /12ba\D{0,12}0200/i.test(pad.id),
+    matches: isRockBandPs3,
     normalize(pad) {
       return {
         profile: this.name,
