@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -133,7 +133,7 @@ class GameEngine(Engine):
     tickrate     = self.config.get("engine", "tickrate")
     Engine.__init__(self, fps = fps, tickrate = tickrate)
     
-    pygame.init()
+    self._initPygame()
     
     self.title             = _("Frets on Fire")
     self.restartRequested  = False
@@ -148,7 +148,7 @@ class GameEngine(Engine):
     bufferSize   = self.config.get("audio", "buffersize")
     
     self.audio.pre_open(frequency = frequency, bits = bits, stereo = stereo, bufferSize = bufferSize)
-    pygame.init()
+    self._initPygame()
     self.audio.open(frequency = frequency, bits = bits, stereo = stereo, bufferSize = bufferSize)
 
     Log.debug("Initializing video.")
@@ -202,6 +202,13 @@ class GameEngine(Engine):
     self.loadingScreenShown = False
 
     Log.debug("Ready.")
+
+  def _initPygame(self):
+    if sys.platform == "emscripten":
+      # Video, input and audio are provided by the browser; SDL is only used for fonts and surfaces.
+      pygame.font.init()
+    else:
+      pygame.init()
 
   def setStartupLayer(self, startupLayer):
     """

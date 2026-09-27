@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -21,7 +21,12 @@
 #####################################################################
 
 import pygame
+import sys
 import time
+
+# In the browser each frame already waits for requestAnimationFrame, so the timer must not spin.
+pacedExternally = sys.platform == "emscripten"
+_epoch = time.perf_counter()
 
 class Timer(object):
   def __init__(self, fps = 60, tickrate = 1.0):
@@ -36,6 +41,8 @@ class Timer(object):
     self.highPriority          = False
 
   def getTime(self):
+    if pacedExternally:
+      return int((time.perf_counter() - _epoch) * 1000.0 * self.tickrate)
     return int(pygame.time.get_ticks() * self.tickrate)
 
   time = property(getTime)
@@ -44,7 +51,7 @@ class Timer(object):
     while True:
       ticks = self.getTime()
       diff = ticks - self.ticks
-      if diff >= self.timestep:
+      if diff >= self.timestep or pacedExternally:
         break
       if not self.highPriority:
         pygame.time.wait(0)

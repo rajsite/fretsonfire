@@ -35,8 +35,8 @@ export class WebAudioEngine {
   private events: string[] = [];
   musicEndEvent = false;
 
-  constructor(private files: AudioFiles) {
-    this.ctx = new AudioContext({ latencyHint: 'interactive' });
+  constructor(private files: AudioFiles, ctx?: AudioContext) {
+    this.ctx = ctx ?? new AudioContext({ latencyHint: 'interactive' });
     this.master = this.ctx.createGain();
     this.master.connect(this.ctx.destination);
     this.music = { buffer: null, gain: this.ctx.createGain(), playback: null, startOffset: 0, paused: false };

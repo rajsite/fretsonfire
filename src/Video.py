@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -22,9 +22,15 @@
 
 import pygame
 import os
+import sys
 from OpenGL.GL import *
 from OpenGL.GL.ARB.multisample import *
 import Log
+
+if sys.platform == "emscripten":
+  from fof_web import video as browserVideo, input as browserInput
+else:
+  browserVideo = None
 
 class Video:
   def __init__(self, caption = "Game"):
@@ -35,6 +41,12 @@ class Video:
 
   def setMode(self, resolution, fullscreen = False, flags = pygame.OPENGL | pygame.DOUBLEBUF,
               multisamples = 0):
+    if browserVideo:
+      self.fullscreen = fullscreen
+      self.screen = browserVideo.setMode(resolution, fullscreen, multisamples)
+      browserInput.setCursorVisible(False)
+      return True
+
     if fullscreen:
       flags |= pygame.FULLSCREEN
       
@@ -85,10 +97,17 @@ class Video:
   def toggleFullscreen(self):
     assert self.screen
     
+    if browserVideo:
+      return browserVideo.toggleFullscreen()
     return pygame.display.toggle_fullscreen()
 
   def flip(self):
-    pygame.display.flip()
+    if browserVideo:
+      browserVideo.flip()
+    else:
+      pygame.display.flip()
 
   def getVideoModes(self):
+    if browserVideo:
+      return browserVideo.listModes()
     return pygame.display.list_modes()

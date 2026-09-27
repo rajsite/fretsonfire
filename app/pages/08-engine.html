@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>08 - Game engine and menus</title>
+    <link rel="stylesheet" href="../src/page.css" />
+    <link rel="stylesheet" href="../src/game.css" />
+    <style>
+      #container {
+        width: 640px;
+        height: 480px;
+      }
+    </style>
+  </head>
+  <body>
+    <header><a href="../index.html">index</a> / 08 - Game engine and menus (<a href="?autostart&verbose">autostart</a>)</header>
+    <main>
+      <div id="container" class="fof-container">
+        <canvas id="game" width="640" height="480"></canvas>
+        <div id="overlay" class="fof-overlay" hidden></div>
+      </div>
+      <div id="log"></div>
+    </main>
+    <script type="module" src="../src/pages/08-engine.ts"></script>
+  </body>
+</html>

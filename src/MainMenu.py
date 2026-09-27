@@ -23,6 +23,7 @@
 from OpenGL.GL import *
 import math
 import socket
+import sys
 
 from View import BackgroundLayer
 from Menu import Menu
@@ -56,11 +57,15 @@ class MainMenu(BackgroundLayer):
       (_("Join Multiplayer Game"), self.joinMultiplayerGame),
     ]
 
-    editorMenu = Menu(self.engine, [
+    editorItems = [
       (_("Edit Existing Song"),            self.startEditor),
       (_("Import New Song"),               self.startImporter),
       (_("Import Guitar Hero(tm) Songs"),  self.startGHImporter),
-    ])
+    ]
+    if sys.platform == "emscripten":
+      # Importing needs local files and the external oggenc tool.
+      editorItems = editorItems[:1]
+    editorMenu = Menu(self.engine, editorItems)
     
     settingsMenu = Settings.SettingsMenu(self.engine)
     

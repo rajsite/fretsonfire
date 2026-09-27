@@ -23,7 +23,7 @@ export function toggleFullscreen(element: HTMLElement): void {
   });
 }
 
-export function createPlatform(canvas: HTMLCanvasElement, fullscreenElement: HTMLElement = canvas): Platform {
+export function createPlatform(canvas: HTMLCanvasElement, fullscreenElement: HTMLElement = canvas, audioContext?: AudioContext): Platform {
   const gl = new GLBackend(canvas);
   const input = new BrowserInput(canvas, { onFullscreenToggle: () => toggleFullscreen(fullscreenElement) });
   let audio: WebAudioEngine | null = null;
@@ -35,10 +35,13 @@ export function createPlatform(canvas: HTMLCanvasElement, fullscreenElement: HTM
       return audio;
     },
     modules: (rt) => {
-      audio = new WebAudioEngine({
-        lazyUrl: (path) => rt.files.lazy.get(path) ?? null,
-        readFile: (path) => rt.pyodide.FS.readFile(path),
-      });
+      audio = new WebAudioEngine(
+        {
+          lazyUrl: (path) => rt.files.lazy.get(path) ?? null,
+          readFile: (path) => rt.pyodide.FS.readFile(path),
+        },
+        audioContext,
+      );
       return { fofgl: gl, fofinput: input, fofaudio: audio };
     },
   };
