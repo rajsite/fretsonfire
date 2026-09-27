@@ -62,9 +62,10 @@ difficulties = {
 }
 
 class SongInfo(object):
-  def __init__(self, infoFileName):
+  def __init__(self, infoFileName, noteFileName = None):
     self.songName      = os.path.basename(os.path.dirname(infoFileName))
     self.fileName      = infoFileName
+    self.noteFileName  = noteFileName or os.path.join(os.path.dirname(infoFileName), "notes.mid")
     self.info          = Config.createParser()
     self._difficulties = None
 
@@ -125,7 +126,7 @@ class SongInfo(object):
 
     # See which difficulties are available
     try:
-      noteFileName = os.path.join(os.path.dirname(self.fileName), "notes.mid")
+      noteFileName = self.noteFileName
       info = MidiInfoReader()
       midiIn = midi.MidiInFile(info, noteFileName)
       try:
@@ -427,7 +428,7 @@ class Track:
 class Song(object):
   def __init__(self, engine, infoFileName, songTrackName, guitarTrackName, rhythmTrackName, noteFileName, scriptFileName = None):
     self.engine        = engine
-    self.info          = SongInfo(infoFileName)
+    self.info          = SongInfo(infoFileName, noteFileName)
     self.tracks        = [Track() for t in range(len(difficulties))]
     self.difficulty    = difficulties[AMAZING_DIFFICULTY]
     self._playing      = False
@@ -793,7 +794,7 @@ def loadSong(engine, name, library = DEFAULT_LIBRARY, seekable = False, playback
 
 def loadSongInfo(engine, name, library = DEFAULT_LIBRARY):
   infoFile   = engine.resource.fileName(library, name, "song.ini", writable = True)
-  return SongInfo(infoFile)
+  return SongInfo(infoFile, engine.resource.fileName(library, name, "notes.mid"))
   
 def createSong(engine, name, guitarTrackName, backgroundTrackName, rhythmTrackName = None, library = DEFAULT_LIBRARY):
   path = os.path.abspath(engine.resource.fileName(library, name, writable = True))
@@ -872,7 +873,8 @@ def getAvailableSongs(engine, library = DEFAULT_LIBRARY, includeTutorials = Fals
       if not name in names:
         names.append(name)
 
-  songs = [SongInfo(engine.resource.fileName(library, name, "song.ini", writable = True)) for name in names]
+  songs = [SongInfo(engine.resource.fileName(library, name, "song.ini", writable = True),
+                    engine.resource.fileName(library, name, "notes.mid")) for name in names]
   if not includeTutorials:
     songs = [song for song in songs if not song.tutorial]
   songs.sort(key = lambda s: s.name)
