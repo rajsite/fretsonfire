@@ -427,7 +427,7 @@ class Track:
         currentTicks = ticks
 
 class Song(object):
-  def __init__(self, engine, infoFileName, songTrackName, guitarTrackName, rhythmTrackName, noteFileName, scriptFileName = None, drumsTrackName = None):
+  def __init__(self, engine, infoFileName, songTrackName, guitarTrackName, rhythmTrackName, noteFileName, scriptFileName = None, drumsTrackName = None, preview = False):
     self.engine        = engine
     self.info          = SongInfo(infoFileName, noteFileName)
     self.tracks        = [Track() for t in range(len(difficulties))]
@@ -439,9 +439,12 @@ class Song(object):
     self.period        = 0
 
     # load the tracks
-    Audio.prefetch([n for n in (songTrackName, guitarTrackName, rhythmTrackName, drumsTrackName) if n])
-    if songTrackName:
-      self.music       = Audio.Music(songTrackName)
+    if preview:
+      self.music       = Audio.PreviewMusic(songTrackName)
+    else:
+      Audio.prefetch([n for n in (songTrackName, guitarTrackName, rhythmTrackName, drumsTrackName) if n])
+      if songTrackName:
+        self.music     = Audio.Music(songTrackName)
 
     self.guitarTrack = None
     self.rhythmTrack = None
@@ -876,8 +879,13 @@ def loadSong(engine, name, library = DEFAULT_LIBRARY, seekable = False, playback
   
   if playbackOnly:
     noteFile = None
+
+  # The browser previews only the background track, streamed rather than decoded.
+  preview = playbackOnly and sys.platform == "emscripten"
+  if preview:
+    guitarFile = rhythmFile = None
   
-  song       = Song(engine, infoFile, songFile, guitarFile, rhythmFile, noteFile, scriptFile, drumsFile)
+  song       = Song(engine, infoFile, songFile, guitarFile, rhythmFile, noteFile, scriptFile, drumsFile, preview = preview)
   return song
 
 def loadSongInfo(engine, name, library = DEFAULT_LIBRARY):

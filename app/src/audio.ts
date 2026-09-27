@@ -59,6 +59,19 @@ interface Playback {
   onEnded?: () => void;
 }
 
+interface Stream {
+  path: string;
+  el: HTMLAudioElement;
+  gain: GainNode;
+  node: MediaElementAudioSourceNode;
+  objectUrl: string | null;
+  ready: Promise<void>;
+  // Paused by pauseAll(), to be resumed by unpauseAll().
+  suspended: boolean;
+  volume: number;
+  fadeTimer?: ReturnType<typeof setTimeout>;
+}
+
 export interface AudioFiles {
   lazy(path: string): LazySource | undefined;
   readFile(path: string): Uint8Array;
@@ -75,6 +88,8 @@ export class WebAudioEngine {
   private channels: { gain: GainNode; playback: Playback | null }[] = [];
   private music: { buffer: AudioBuffer | null; gain: GainNode; playback: Playback | null; startOffset: number; paused: boolean };
   private nextSound = 1;
+  private streams = new Map<number, Stream>();
+  private nextStream = 1;
   private pendingStart: number | null = null;
   private events: string[] = [];
   musicEndEvent = false;
@@ -195,10 +210,11 @@ export class WebAudioEngine {
     return buffer;
   }
 
-  stats(): { cached: string[]; sounds: number; playingSounds: number } {
+  stats(): { cached: string[]; sounds: number; playingSounds: number; streams: { path: string; playing: boolean; time: number }[] } {
     let playingSounds = 0;
     for (const s of this.sounds.values()) if ([...s.playbacks].some((pb) => this.isActive(pb))) playingSounds++;
-    return { cached: [...this.buffers.keys()], sounds: this.sounds.size, playingSounds };
+    const streams = [...this.streams.values()].map((s) => ({ path: s.path, playing: !s.el.paused && !s.el.ended, time: s.el.currentTime }));
+    return { cached: [...this.buffers.keys()], sounds: this.sounds.size, playingSounds, streams };
   }
 
   // --- Playback primitives ----------------------------------------------------
@@ -363,12 +379,118 @@ export class WebAudioEngine {
     for (const ch of this.channels) this.pausePlayback(ch.playback);
     for (const s of this.sounds.values()) for (const pb of s.playbacks) this.pausePlayback(pb);
     this.pausePlayback(this.music.playback);
+    for (const s of this.streams.values()) {
+      if (!s.el.paused) {
+        s.suspended = true;
+        s.el.pause();
+      }
+    }
   }
 
   unpauseAll(): void {
     for (const ch of this.channels) this.resumePlayback(ch.playback);
     for (const s of this.sounds.values()) for (const pb of s.playbacks) this.resumePlayback(pb);
     if (!this.music.paused) this.resumePlayback(this.music.playback);
+    for (const s of this.streams.values()) {
+      if (s.suspended) {
+        s.suspended = false;
+        s.el.play().catch(() => {});
+      }
+    }
+  }
+
+  // --- Streams (previews): one file played through a media element, never decoded up front ---
+
+  streamCreate(path: string): number {
+    const id = this.nextStream++;
+    const el = new Audio();
+    el.preload = 'auto';
+    const gain = this.ctx.createGain();
+    gain.connect(this.master);
+    const node = this.ctx.createMediaElementSource(el);
+    node.connect(gain);
+    const stream: Stream = { path, el, gain, node, objectUrl: null, ready: Promise.resolve(), suspended: false, volume: 1 };
+    stream.ready = (async () => {
+      const source = this.files.lazy(path);
+      if (source?.url) {
+        el.src = source.url;
+        return;
+      }
+      const blob = source ? await source.blob() : new Blob([this.files.readFile(path).slice()], { type: 'audio/ogg' });
+      if (!this.streams.has(id)) return;
+      stream.objectUrl = URL.createObjectURL(blob);
+      el.src = stream.objectUrl;
+    })();
+    stream.ready.catch((e: unknown) => console.warn(`stream ${path}: ${e instanceof Error ? e.message : String(e)}`));
+    this.streams.set(id, stream);
+    return id;
+  }
+
+  streamPlay(id: number, loops: number, startSeconds: number): void {
+    const s = this.streams.get(id);
+    if (!s) return;
+    s.el.loop = loops !== 0;
+    clearTimeout(s.fadeTimer);
+    s.gain.gain.cancelScheduledValues(this.ctx.currentTime);
+    s.gain.gain.setValueAtTime(s.volume, this.ctx.currentTime);
+    void s.ready.then(() => {
+      s.el.currentTime = startSeconds;
+      return s.el.play();
+    }).catch(() => {});
+  }
+
+  streamStop(id: number): void {
+    const s = this.streams.get(id);
+    if (!s) return;
+    s.suspended = false;
+    s.el.pause();
+  }
+
+  streamResume(id: number): void {
+    const s = this.streams.get(id);
+    if (s?.el.paused && !s.el.ended) s.el.play().catch(() => {});
+  }
+
+  streamSetVolume(id: number, volume: number): void {
+    const s = this.streams.get(id);
+    if (!s) return;
+    s.volume = volume;
+    s.gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+  }
+
+  streamFadeout(id: number, ms: number): void {
+    const s = this.streams.get(id);
+    if (!s) return;
+    const t = this.ctx.currentTime;
+    const g = s.gain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    g.linearRampToValueAtTime(0, t + ms / 1000);
+    clearTimeout(s.fadeTimer);
+    s.fadeTimer = setTimeout(() => s.el.pause(), ms);
+  }
+
+  streamIsPlaying(id: number): boolean {
+    const s = this.streams.get(id);
+    return !!s && (s.suspended || (!s.el.paused && !s.el.ended));
+  }
+
+  streamGetPos(id: number): number {
+    const s = this.streams.get(id);
+    return s && !s.el.paused ? s.el.currentTime * 1000 : -1;
+  }
+
+  streamRelease(id: number): void {
+    const s = this.streams.get(id);
+    if (!s) return;
+    this.streams.delete(id);
+    clearTimeout(s.fadeTimer);
+    s.el.pause();
+    s.el.removeAttribute('src');
+    s.el.load();
+    s.node.disconnect();
+    s.gain.disconnect();
+    if (s.objectUrl) URL.revokeObjectURL(s.objectUrl);
   }
 
   // --- Music ----------------------------------------------------------------
@@ -440,5 +562,6 @@ export class WebAudioEngine {
     this.musicStop();
     for (let i = 0; i < this.channels.length; i++) this.channelStop(i);
     for (const id of this.sounds.keys()) this.soundStop(id);
+    for (const id of [...this.streams.keys()]) this.streamRelease(id);
   }
 }

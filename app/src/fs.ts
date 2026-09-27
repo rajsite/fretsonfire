@@ -30,6 +30,8 @@ export interface GameFs {
 export interface LazySource {
   // A URL or a zip entry description, for diagnostics.
   readonly origin: string;
+  // Set when the contents can be streamed straight from a URL.
+  readonly url?: string;
   bytes(): Promise<Uint8Array>;
   blob(): Promise<Blob>;
 }
@@ -43,6 +45,7 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
 export function urlSource(url: string): LazySource {
   return {
     origin: url,
+    url,
     bytes: () => fetchBytes(url),
     blob: async () => {
       const res = await fetch(url);

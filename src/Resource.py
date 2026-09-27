@@ -77,14 +77,21 @@ class Loader(object):
   def cancel(self):
     self.canceled = True
 
+  def isAlive(self):
+    return self.thread is not None and self.thread.is_alive()
+
   def load(self):
     try:
+      # Loaders run one per frame without threads, so a canceled one may not have started yet.
+      if self.canceled and not threadedLoading:
+        return
       start = time.time()
       self.result = self.function()
       self.time = time.time() - start
     except:
       self.exception = sys.exc_info()
-    self.loaded = True
+    finally:
+      self.loaded = True
 
   def finish(self):
     if self.canceled:

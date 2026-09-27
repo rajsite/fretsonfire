@@ -41,7 +41,7 @@ if hasattr(sys, "frozen"):
 #  Log.warn("PyOGG not found. OGG files will be fully decoded prior to playing; expect absurd memory usage.")
 
 if sys.platform == "emscripten":
-  from fof_web.audio import Audio, Music, Channel, Sound, StreamingSound, prefetch
+  from fof_web.audio import Audio, Music, PreviewMusic, Channel, Sound, StreamingSound, prefetch
 elif "pyglet" in sys.modules:
   class AudioPyglet(Task):
     def __init__(self, channels = 8):
@@ -450,4 +450,7 @@ if sys.platform != "emscripten":
   def prefetch(fileNames):
     """Hint that these files are loaded next; the browser starts decoding them in parallel."""
     pass
+
+  # The browser streams previews instead of decoding them.
+  PreviewMusic = Music
 

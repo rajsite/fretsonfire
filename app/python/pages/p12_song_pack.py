@@ -59,4 +59,16 @@ def run(root):
     "04 Long Song": Song.isSongTooLong(engine, "04 Long Song", library = packLibrary + "/Classic"),
     "01 RB Style": Song.isSongTooLong(engine, "01 RB Style", library = rb),
   }
+
+  preview = Song.loadSong(engine, "01 RB Style", library = rb, playbackOnly = True)
+  result["preview"] = {
+    "music": type(preview.music).__name__,
+    "stems": [t is not None for t in (preview.guitarTrack, preview.rhythmTrack, preview.drumsTrack)],
+  }
+  preview.play()
+  # Keep the preview alive (and playing) after run() returns.
+  _previews.append(preview)
   return json.dumps(result)
+
+
+_previews = []

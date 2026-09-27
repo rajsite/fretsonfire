@@ -18,8 +18,22 @@ input.addEventListener('change', async () => {
     const rt = await startGameRuntime({ log, modules: platform.modules, songPack: pack });
     const root = rt.songPackRoot!;
     const json = await rt.pyodide.runPythonAsync(`import pages.p12_song_pack as p; p.run(${JSON.stringify(root)})`);
+
+    // The preview started by Python streams through a media element.
+    const audio = platform.audio();
+    await audio.resume();
+    const deadline = performance.now() + 10_000;
+    let stream = audio.stats().streams[0];
+    while (performance.now() < deadline && !(stream?.playing && stream.time > 0.3)) {
+      await new Promise((r) => setTimeout(r, 100));
+      stream = audio.stats().streams[0];
+    }
+    const previewStream = { path: stream?.path.slice(root.length + 1), playing: stream?.playing ?? false, time: stream?.time ?? 0 };
+    const decodedAfterPreview = audio.stats().cached.filter((p) => p.startsWith(`${root}/Rock Band/`));
     done({
       ...JSON.parse(json),
+      previewStream,
+      decodedAfterPreview,
       name: pack.name,
       root,
       layout: { songs: pack.layout.songs, libraries: pack.layout.libraries, warnings: pack.layout.warnings },

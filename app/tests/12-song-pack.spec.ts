@@ -21,6 +21,9 @@ interface PackResult {
   oggSeconds: number;
   cachedSongDirs: string[];
   tooLong: Record<string, boolean>;
+  preview: { music: string; stems: boolean[] };
+  previewStream: { path: string; playing: boolean; time: number };
+  decodedAfterPreview: string[];
 }
 
 test('pack layout rules', async () => {
@@ -90,6 +93,9 @@ test('a mounted pack is visible to the game library and song APIs', async ({ pag
   expect(r.oggSeconds).toBeGreaterThan(10);
   expect(r.cachedSongDirs).toEqual(['Classic/03 M\u00f6tley']);
   expect(r.tooLong).toEqual({ '04 Long Song': true, '01 RB Style': false });
+  expect(r.preview).toEqual({ music: 'PreviewMusic', stems: [false, false, false] });
+  expect(r.previewStream).toMatchObject({ path: 'Rock Band/01 RB Style/song.ogg', playing: true });
+  expect(r.decodedAfterPreview).toEqual([]);
 });
 
 test('Ogg durations are read from headers without decoding', () => {
@@ -106,6 +112,29 @@ test('Ogg durations are read from headers without decoding', () => {
 async function state(page: Page) {
   return page.evaluate(() => window.__fof?.state ?? { layers: [] as string[], score: 0, notesHit: 0 });
 }
+
+test('song chooser previews stream instead of decoding', async ({ page }) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.text().startsWith('(E)')) errors.push(m.text());
+  });
+  await page.goto('index.html');
+  await page.locator('#fof-start').click();
+  await expect.poll(async () => (await state(page)).layers, { timeout: 120_000 }).toContain('Menu');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await state(page)).layers, { timeout: 60_000 }).toContain('SongChooser');
+  const audioStats = () => page.evaluate(() => window.__fof!.platform!.audio().stats());
+  await expect.poll(async () => (await audioStats()).streams.filter((s) => s.playing).length, { timeout: 30_000 }).toBe(1);
+  // Moving on quickly cancels the pending preview and starts the next one.
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(3000);
+  const stats = await audioStats();
+  expect(stats.cached.filter((p) => p.includes('/songs/'))).toEqual([]);
+  expect(stats.streams.filter((s) => s.playing).length).toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
+});
 
 test('the start gate takes a song pack and plays a song from it', async ({ page }) => {
   test.setTimeout(240_000);

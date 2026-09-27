@@ -96,6 +96,45 @@ class Music(object):
     return fofaudio.musicGetPos()
 
 
+class PreviewMusic(object):
+  """Music streamed through a media element instead of being decoded up front (song previews)."""
+  def __init__(self, fileName):
+    self.id = fofaudio.streamCreate(os.path.abspath(fileName))
+
+  def __del__(self):
+    try:
+      fofaudio.streamRelease(self.id)
+    except Exception:
+      pass
+
+  def play(self, loops = -1, pos = 0.0):
+    fofaudio.streamPlay(self.id, loops, pos)
+
+  def stop(self):
+    fofaudio.streamStop(self.id)
+
+  def rewind(self):
+    pass
+
+  def pause(self):
+    fofaudio.streamStop(self.id)
+
+  def unpause(self):
+    fofaudio.streamResume(self.id)
+
+  def setVolume(self, volume):
+    fofaudio.streamSetVolume(self.id, volume)
+
+  def fadeout(self, time):
+    fofaudio.streamFadeout(self.id, time)
+
+  def isPlaying(self):
+    return fofaudio.streamIsPlaying(self.id)
+
+  def getPosition(self):
+    return fofaudio.streamGetPos(self.id)
+
+
 class Channel(object):
   def __init__(self, id):
     self.id = id
