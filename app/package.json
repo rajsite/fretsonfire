@@ -1,14 +1,23 @@
 {
   "name": "fretsonfire-pyodide",
   "version": "1.0.0",
-  "description": "",
-  "type": "commonjs",
-  "main": "index.js",
+  "description": "Frets on Fire running in the browser on Pyodide",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "playwright test"
   },
   "dependencies": {
     "playwright": "^1.63.0",
     "vite": "^8.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "typescript": "^7.0.2"
   }
 }

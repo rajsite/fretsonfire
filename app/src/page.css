@@ -1,0 +1,33 @@
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #111;
+  color: #ddd;
+}
+header {
+  padding: 8px 12px;
+  background: #222;
+}
+header a {
+  color: #8cf;
+}
+main {
+  padding: 12px;
+}
+#log {
+  font: 12px/1.4 ui-monospace, monospace;
+  white-space: pre-wrap;
+  max-height: 40vh;
+  overflow: auto;
+  background: #000;
+  padding: 8px;
+  border: 1px solid #333;
+}
+#log .error {
+  color: #f66;
+}
+canvas {
+  display: block;
+  background: #000;
+  outline: none;
+}
