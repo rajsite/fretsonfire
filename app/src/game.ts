@@ -2,6 +2,7 @@
 import { startGameRuntime, type GameRuntime } from './runtime.ts';
 import { createPlatform, toggleFullscreen, type Platform } from './platform.ts';
 import { hasJspi } from './boot.ts';
+import { openSongPack, type SongPack } from './songpack.ts';
 
 export interface GameState {
   layers: string[];
@@ -9,9 +10,15 @@ export interface GameState {
   notesHit?: number;
 }
 
+export interface PackInfo {
+  name: string;
+  songs: number;
+  warnings: string[];
+}
+
 declare global {
   interface Window {
-    __fof?: { state: GameState | null; platform?: Platform; runtime?: GameRuntime };
+    __fof?: { state: GameState | null; platform?: Platform; runtime?: GameRuntime; pack?: PackInfo };
   }
 }
 
@@ -29,6 +36,78 @@ function showOverlay(overlay: HTMLElement, html: string): void {
   overlay.hidden = false;
 }
 
+const PACK_KEY = 'fof.songPack';
+
+const START_GATE = `
+  <button id="fof-start" class="fof-start">Click to play Frets on Fire</button>
+  <div class="fof-pack">
+    <label class="fof-pack-pick">Add song pack (.zip)<input id="fof-pack-input" type="file" accept=".zip,application/zip" hidden /></label>
+    <span id="fof-pack-status"></span>
+    <button id="fof-pack-remove" class="fof-pack-remove" hidden>Remove</button>
+  </div>`;
+
+// Wires the start gate's song pack picker; returns the pack chosen by the time the game starts.
+function setupPackPicker(overlay: HTMLElement): () => Promise<SongPack | undefined> {
+  const input = overlay.querySelector<HTMLInputElement>('#fof-pack-input')!;
+  const status = overlay.querySelector<HTMLElement>('#fof-pack-status')!;
+  const remove = overlay.querySelector<HTMLButtonElement>('#fof-pack-remove')!;
+  let current: Promise<SongPack | undefined> = Promise.resolve(undefined);
+  let token = 0;
+  const show = (text: string, cls = '') => {
+    status.textContent = text;
+    status.className = cls;
+  };
+  const remembered = localStorage.getItem(PACK_KEY);
+  if (remembered) show(`Select ${remembered} again to use your song pack`, 'fof-pack-hint');
+
+  const choose = (file: File) => {
+    const mine = ++token;
+    show(`Reading ${file.name}\u2026`);
+    remove.hidden = true;
+    window.__fof!.pack = undefined;
+    current = openSongPack(file).then(
+      (pack) => {
+        if (mine !== token) return undefined;
+        localStorage.setItem(PACK_KEY, file.name);
+        const { songs, warnings } = pack.layout;
+        for (const w of warnings) console.warn(`song pack: ${w}`);
+        show(`${pack.name}: ${songs.length} songs${warnings.length ? `, ${warnings.length} files skipped` : ''}`, 'fof-pack-ok');
+        remove.hidden = false;
+        window.__fof!.pack = { name: pack.name, songs: songs.length, warnings };
+        return pack;
+      },
+      (e: unknown) => {
+        if (mine === token) show(`${file.name}: ${e instanceof Error ? e.message : String(e)}`, 'fof-pack-error');
+        return undefined;
+      },
+    );
+  };
+
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+    input.value = '';
+    if (file) choose(file);
+  });
+  overlay.addEventListener('dragover', (e) => {
+    if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+  });
+  overlay.addEventListener('drop', (e) => {
+    const file = e.dataTransfer?.files[0];
+    if (!file) return;
+    e.preventDefault();
+    choose(file);
+  });
+  remove.addEventListener('click', () => {
+    token++;
+    current = Promise.resolve(undefined);
+    localStorage.removeItem(PACK_KEY);
+    window.__fof!.pack = undefined;
+    show('');
+    remove.hidden = true;
+  });
+  return () => current;
+}
+
 export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> {
   const { container, canvas, overlay } = options;
   window.__fof = { state: null };
@@ -39,10 +118,12 @@ export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> 
   }
 
   return new Promise((resolve, reject) => {
+    let chosenPack: () => Promise<SongPack | undefined> = () => Promise.resolve(undefined);
     const start = async () => {
       // The AudioContext must be created and resumed within the user gesture.
       const audioContext = new AudioContext({ latencyHint: 'interactive' });
       void audioContext.resume();
+      const songPack = await chosenPack();
       showOverlay(overlay, '<h2>Loading&hellip;</h2><p id="fof-progress"></p>');
       try {
         const platform = createPlatform(canvas, container, audioContext);
@@ -50,6 +131,7 @@ export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> 
         const rt = await startGameRuntime({
           log: options.log,
           modules: platform.modules,
+          songPack,
           onProgress: (loaded, total) => {
             const p = document.getElementById('fof-progress');
             if (p) p.textContent = `${Math.round((100 * loaded) / total)}%`;
@@ -86,7 +168,8 @@ export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> 
     if (options.autostart) {
       void start();
     } else {
-      showOverlay(overlay, '<button id="fof-start" class="fof-start">Click to play Frets on Fire</button>');
+      showOverlay(overlay, START_GATE);
+      chosenPack = setupPackPicker(overlay);
       document.getElementById('fof-start')!.addEventListener('click', () => void start(), { once: true });
     }
   });

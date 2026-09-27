@@ -46,3 +46,31 @@
   border-radius: 8px;
   cursor: pointer;
 }
+.fof-pack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5em;
+  margin-top: 1.5em;
+  font-size: 0.95rem;
+}
+.fof-pack-pick {
+  padding: 0.4em 1em;
+  border: 1px solid #fc6;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.fof-pack-pick:hover {
+  background: #401010;
+}
+.fof-overlay .fof-pack-remove {
+  font-size: 0.85rem;
+  padding: 0.2em 0.8em;
+  border-width: 1px;
+}
+.fof-pack-hint {
+  color: #ccc;
+}
+.fof-pack-error {
+  color: #f88;
+}

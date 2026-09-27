@@ -1,6 +1,7 @@
 // Shared bootstrap for pages that run game code: runtime, game files, persistence, JS bridge module.
 import { loadRuntime, type Pyodide } from './boot.ts';
 import { installGameFiles, mountPersistent, setupPythonPath, type GameFs, type InstallOptions } from './fs.ts';
+import { mountSongPack, type SongPack } from './songpack.ts';
 import { nextFrame } from './frame.ts';
 
 export interface GameRuntime {
@@ -8,11 +9,14 @@ export interface GameRuntime {
   files: GameFs;
   persist: () => Promise<void>;
   bridge: Record<string, unknown>;
+  // MEMFS folder of the mounted song pack.
+  songPackRoot?: string;
 }
 
 export interface GameRuntimeOptions extends InstallOptions {
   log?: (msg: string, cls?: string) => void;
   packages?: string[];
+  songPack?: SongPack;
   // Extra functions exposed to Python through the `fofjs` module.
   bridge?: Record<string, unknown>;
   // Extra modules registered with pyodide.registerJsModule.
@@ -22,6 +26,7 @@ export interface GameRuntimeOptions extends InstallOptions {
 export async function startGameRuntime(options: GameRuntimeOptions = {}): Promise<GameRuntime> {
   const pyodide = await loadRuntime({ log: options.log, packages: options.packages });
   const files = await installGameFiles(pyodide, options);
+  const songPackRoot = options.songPack ? await mountSongPack(pyodide.FS, options.songPack, files.lazy) : undefined;
   const { persist } = await mountPersistent(pyodide);
   setupPythonPath(pyodide);
 
@@ -42,5 +47,5 @@ export async function startGameRuntime(options: GameRuntimeOptions = {}): Promis
   for (const [name, module] of Object.entries(modules ?? {})) {
     pyodide.registerJsModule(name, module);
   }
-  return { pyodide, files, persist, bridge };
+  return { pyodide, files, persist, bridge, songPackRoot };
 }
