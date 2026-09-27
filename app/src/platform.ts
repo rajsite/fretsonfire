@@ -37,7 +37,7 @@ export function createPlatform(canvas: HTMLCanvasElement, fullscreenElement: HTM
     modules: (rt) => {
       audio = new WebAudioEngine(
         {
-          lazyUrl: (path) => rt.files.lazy.get(path) ?? null,
+          lazy: (path) => rt.files.lazy.get(path),
           readFile: (path) => rt.pyodide.FS.readFile(path),
         },
         audioContext,

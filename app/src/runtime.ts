@@ -25,11 +25,16 @@ export async function startGameRuntime(options: GameRuntimeOptions = {}): Promis
   const { persist } = await mountPersistent(pyodide);
   setupPythonPath(pyodide);
 
+  const lazy = (path: string) => {
+    const source = files.lazy.get(path);
+    if (!source) throw new Error(`${path} is not a lazy file`);
+    return source;
+  };
   const bridge: Record<string, unknown> = {
     nextFrame,
     persist,
-    lazyUrl: (path: string) => files.lazy.get(path) ?? null,
-    fetchBytes: async (url: string) => new Uint8Array(await (await fetch(url)).arrayBuffer()),
+    lazyOrigin: (path: string) => files.lazy.get(path)?.origin ?? null,
+    readLazy: (path: string) => lazy(path).bytes(),
     ...options.bridge,
   };
   pyodide.registerJsModule('fofjs', bridge);

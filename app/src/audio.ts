@@ -1,6 +1,7 @@
 // Web Audio engine implementing the game's Audio.py surface (sounds, channels, one music stream).
 // Timing: all starts requested during one Python frame share a start time so tracks stay aligned,
 // and music position comes from AudioContext.currentTime minus the output latency.
+import type { LazySource } from './fs.ts';
 
 const START_GUARD = 0.05;
 
@@ -18,7 +19,7 @@ interface Playback {
 }
 
 export interface AudioFiles {
-  lazyUrl(path: string): string | null;
+  lazy(path: string): LazySource | undefined;
   readFile(path: string): Uint8Array;
 }
 
@@ -75,16 +76,10 @@ export class WebAudioEngine {
     let p = this.buffers.get(path);
     if (!p) {
       p = (async () => {
-        const url = this.files.lazyUrl(path);
-        let bytes: ArrayBuffer;
-        if (url) {
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
-          bytes = await res.arrayBuffer();
-        } else {
-          const data = this.files.readFile(path);
-          bytes = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
-        }
+        const source = this.files.lazy(path);
+        const data = source ? await source.bytes() : this.files.readFile(path);
+        const whole = data.byteOffset === 0 && data.byteLength === data.buffer.byteLength;
+        const bytes = (whole ? data.buffer : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)) as ArrayBuffer;
         return this.ctx.decodeAudioData(bytes);
       })();
       this.buffers.set(path, p);

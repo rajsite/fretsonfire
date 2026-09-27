@@ -38,6 +38,9 @@ threadedLoading = sys.platform != "emscripten"
 # In the browser the data directory is an in-memory copy, so writes must go to the persistent writable path.
 readOnlyData = sys.platform == "emscripten"
 
+# Called with each resolved read-only file, e.g. to fetch lazily stored files in the browser.
+fileNameHook = None
+
 class Loader(object):
   def __init__(self, target, name, function, resultQueue, loaderSemaphore, onLoad = None):
     self.semaphore   = loaderSemaphore
@@ -126,6 +129,8 @@ class Resource(Task):
         # If the requested file is in the read-write path and not in the
         # read-only path, use the existing read-write one.
         if os.path.isfile(readOnlyPath):
+          if fileNameHook:
+            fileNameHook(readOnlyPath)
           return readOnlyPath
         readWritePath = os.path.join(getWritableResourcePath(), *name)
         if os.path.isfile(readWritePath):

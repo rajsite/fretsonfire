@@ -12,26 +12,34 @@ def persist(fileName = None):
 
 
 def isLazy(path):
-  return fofjs.lazyUrl(os.path.abspath(path)) is not None
+  return fofjs.lazyOrigin(os.path.abspath(path)) is not None
 
 
 def urlFor(path):
-  """URL of a lazily fetched game file, or None if the file is fully present in MEMFS."""
-  return fofjs.lazyUrl(os.path.abspath(path))
+  """Origin (URL or zip entry) of a lazily read game file, or None if the file is fully present in MEMFS."""
+  return fofjs.lazyOrigin(os.path.abspath(path))
 
 
 def materialize(path):
-  """Make sure a lazily fetched file has its real contents on disk."""
-  url = urlFor(path)
-  if url is None or os.path.getsize(path) > 0:
+  """Make sure a lazily read file has its real contents on disk."""
+  path = os.path.abspath(path)
+  if fofjs.lazyOrigin(path) is None or not os.path.isfile(path) or os.path.getsize(path) > 0:
     return path
-  data = run_sync(fofjs.fetchBytes(url)).to_py()
+  data = run_sync(fofjs.readLazy(path)).to_py()
   with open(path, "wb") as f:
     f.write(data)
   return path
 
 
+def _materializeResource(path):
+  # Audio is decoded by the browser straight from its source and never copied into MEMFS.
+  if not path.lower().endswith(".ogg"):
+    materialize(path)
+
+
 def installHooks():
   import Config
+  import Resource
   if persist not in Config.writeHooks:
     Config.writeHooks.append(persist)
+  Resource.fileNameHook = _materializeResource

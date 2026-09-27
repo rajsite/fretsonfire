@@ -20,16 +20,36 @@ export interface InstallOptions {
 }
 
 export interface GameFs {
-  // MEMFS path -> URL for files that exist only as zero-length stubs.
-  lazy: Map<string, string>;
+  // MEMFS path -> source for files that exist only as zero-length stubs.
+  lazy: Map<string, LazySource>;
   fetched: number;
   bytes: number;
+}
+
+// Contents of a lazy file, fetched on demand.
+export interface LazySource {
+  // A URL or a zip entry description, for diagnostics.
+  readonly origin: string;
+  bytes(): Promise<Uint8Array>;
+  blob(): Promise<Blob>;
 }
 
 async function fetchBytes(url: string): Promise<Uint8Array> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
   return new Uint8Array(await res.arrayBuffer());
+}
+
+export function urlSource(url: string): LazySource {
+  return {
+    origin: url,
+    bytes: () => fetchBytes(url),
+    blob: async () => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+      return res.blob();
+    },
+  };
 }
 
 export async function installGameFiles(pyodide: Pyodide, options: InstallOptions = {}): Promise<GameFs> {
@@ -45,7 +65,7 @@ export async function installGameFiles(pyodide: Pyodide, options: InstallOptions
     FS.mkdirTree(fsPath.slice(0, fsPath.lastIndexOf('/')));
     if (entry.class === 'lazy') {
       FS.writeFile(fsPath, new Uint8Array(0));
-      result.lazy.set(fsPath, `${GAME_URL}/${entry.path}`);
+      result.lazy.set(fsPath, urlSource(`${GAME_URL}/${entry.path}`));
     } else {
       core.push(entry);
     }
