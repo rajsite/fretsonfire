@@ -50,7 +50,8 @@ function infoOf(gp: Gamepad): PadInfo {
     mapping: gp.mapping,
     axes: gp.axes.length,
     buttons: gp.buttons.length,
-    vibration: gp.vibrationActuator?.type ?? null,
+    // `type` is still missing from the TypeScript DOM typings for GamepadHapticActuator.
+    vibration: (gp.vibrationActuator as { type?: string } | null)?.type ?? null,
   };
 }
 
