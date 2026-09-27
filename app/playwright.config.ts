@@ -8,7 +8,8 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:5173',
+    // Set FOF_BASE_URL=http://localhost:4173 to test a `vite build` served by `vite preview`.
+    baseURL: process.env.FOF_BASE_URL ?? 'http://localhost:5173',
     trace: 'retain-on-failure',
   },
   projects: [

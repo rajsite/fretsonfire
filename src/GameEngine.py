@@ -64,7 +64,8 @@ Config.define("audio",  "frequency",    int,   44100, text = _("Sample Frequency
 Config.define("audio",  "bits",         int,   16,    text = _("Sample Bits"), options = [16, 8])
 Config.define("audio",  "stereo",       bool,  True)
 Config.define("audio",  "buffersize",   int,   2048,  text = _("Buffer Size"), options = [256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536])
-Config.define("audio",  "delay",        int,   100,   text = _("A/V delay"), options = dict([(n, n) for n in range(0, 301)]))
+# Web Audio positions already account for output latency, unlike SDL_mixer's.
+Config.define("audio",  "delay",        int,   0 if sys.platform == "emscripten" else 100,   text = _("A/V delay"), options = dict([(n, n) for n in range(0, 301)]))
 Config.define("audio",  "screwupvol", float,   0.25,  text = _("Screw Up Sounds"), options = {0.0: _("Off"), .25: _("Quiet"), .5: _("Loud"), 1.0: _("Painful")})
 Config.define("audio",  "guitarvol",  float,    1.0,  text = _("Guitar Volume"),   options = dict([(n / 100.0, "%02d/10" % (n / 9)) for n in range(0, 110, 10)]))
 Config.define("audio",  "songvol",    float,    1.0,  text = _("Song Volume"),     options = dict([(n / 100.0, "%02d/10" % (n / 9)) for n in range(0, 110, 10)]))

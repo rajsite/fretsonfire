@@ -42,5 +42,13 @@ test('plays a song with the built-in autoplay cheat and scores', async ({ page }
   const sorted = [...frameTimes].sort((a, b) => a - b);
   const p95 = sorted[Math.floor(sorted.length * 0.95)];
   console.log(`frames: ${sorted.length}, median ${sorted[Math.floor(sorted.length / 2)].toFixed(1)} ms, p95 ${p95.toFixed(1)} ms`);
+
+  // Dismiss the autoplay message, then "fastforward" jumps to the results scene.
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await state(page)).layers).not.toContain('MessageScreen');
+  await page.keyboard.type('fastforward', { delay: 30 });
+  await expect.poll(async () => (await state(page)).layers, { timeout: 60_000 }).toContain('GameResultsSceneClient');
+  await page.waitForTimeout(3000);
+  await expect(page.locator('#game')).toHaveScreenshot('results.png', { maxDiffPixelRatio: 0.3 });
   expect(errors).toEqual([]);
 });

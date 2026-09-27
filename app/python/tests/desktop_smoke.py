@@ -73,10 +73,11 @@ def main():
 
   # Tearing down mid-song can raise errors from dialogs shown during shutdown; only count gameplay errors.
   failures = list(errors)
-  engine.quit()
   print("ERRORS: %d" % len(failures))
   for e in failures:
     print("  " + e)
+  sys.stdout.flush()
+  engine.quit()
   return 1 if failures else 0
 
 

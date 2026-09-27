@@ -9,6 +9,37 @@ JSPI is a hard requirement (Chromium today; other browsers as they ship it). Eve
 page checks `pyodide.ffi.can_run_sync()` at boot and shows a clear message when JSPI
 is missing.
 
+## Implementation status
+
+Steps 1–10 are implemented and covered by the Playwright suite (`npm test`, Chromium).
+Deviations from the original plan:
+
+- **TypeScript.** All browser code, the Vite plugin (`tools/*.ts`), the configs and the
+  tests are TypeScript. `npm run typecheck` runs `tsc`.
+- **Page numbering.** Font rendering is a scene on the GL page (`04-gl-shim.html?scene=font`)
+  rather than a separate `05` page. The engine page (`08-engine.html`) also hosts the
+  gameplay test (`tests/09-gameplay.spec.ts`), and `index.html` is the production entry.
+  The development pages are listed at `pages/index.html`.
+- **Networking.** asyncore is gone from Python 3.12+ on desktop too, so the in-memory
+  loopback transport replaced `src/Network.py` itself instead of living in `fof_web`.
+  Remote hosts raise `Network.NetworkError`.
+- **Translations.** The Vite plugin builds `<language>.mo` files the way
+  `data/translations/update.py` does (`msgcat fretsonfire_xx.po tutorial_xx.po | msgfmt`),
+  re-encoded to UTF-8.
+- **Desktop reference.** `app/python/tests/desktop_smoke.py` drives the real game with
+  PyOpenGL and pygame-ce on CPython 3.14. `app/python/tests/test_core.py` runs both on
+  desktop and inside Pyodide (from `03-fs.html`).
+- **Python 3 bugs found by the port.** Integer division (`Guitar` string positions, `Stage`
+  beats, `Player` score multiplier), `event.unicode` renamed by fissix, the `unicode`
+  key-handler parameters, SDL2 key codes vs. joystick ids in `Input.getKeyName`,
+  `Thread.name` clobbering in `Resource.Loader`, and `SongInfo` looking for `notes.mid`
+  in the writable copy.
+
+Remaining work (step 11 and polish): song import via file upload, a service worker
+cache, `.pyc` precompilation, WebKit/Firefox once they ship JSPI, and calibrating the
+A/V delay (the browser default is 0 ms because the Web Audio clock subtracts the output
+latency).
+
 ---
 
 ## 0. Target layout
