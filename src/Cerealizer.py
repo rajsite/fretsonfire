@@ -4,13 +4,6 @@
 # This program is free software.
 # It is available under the Python licence.
 
-try:
-  set
-except:
-  import sets
-  set = sets.Set
-  class frozenset(set): pass
-
 """Cerealizer -- A secure Pickle-like module
 
 The interface of the Cerealizer module is similar to Pickle, and it supports
@@ -129,13 +122,13 @@ from functools import cmp_to_key
 logger = logging.getLogger("cerealizer")
 #logging.basicConfig(level=logging.INFO)
 
+# The stream is text where each character is one byte (latin-1), matching the Python 2 format.
 from io import StringIO
-from new       import instance
 
 class NotCerealizerFileError(Exception): pass
 class NonCerealizableObjectError(Exception): pass
 
-def _priority_sorter(a, b): return cmp(a[0], b[0])
+def _priority_sorter(a, b): return (a[0] > b[0]) - (a[0] < b[0])
 
 class Dumper(object):
   def dump(self, root_obj, s):
@@ -197,7 +190,7 @@ Reads a reference from file S."""
     if   c == "i": return int  (s.readline())
     elif c == "f": return float(s.readline())
     elif c == "s": return s.read(int(s.readline()))
-    elif c == "u": return s.read(int(s.readline())).decode("utf8")
+    elif c == "u": return s.read(int(s.readline())).encode("latin-1").decode("utf8")
     elif c == "r": return self.id2obj[int(s.readline())]
     elif c == "n": return None
     elif c == "b": return bool(int(s.read(1)))
@@ -278,22 +271,19 @@ class RefHandler(object):
 class NoneHandler(RefHandler):
   def dump_ref (self, obj, dumper, s): s.write("n")
   
-class StrHandler(RefHandler):
-  def dump_ref (self, obj, dumper, s): s.write("s%s\n%s" % (len(obj), obj))
+class BytesHandler(RefHandler):
+  def dump_ref (self, obj, dumper, s): s.write("s%s\n%s" % (len(obj), obj.decode("latin-1")))
   
 class UnicodeHandler(RefHandler):
   def dump_ref (self, obj, dumper, s):
     obj = obj.encode("utf8")
-    s.write("u%s\n%s" % (len(obj), obj))
+    s.write("u%s\n%s" % (len(obj), obj.decode("latin-1")))
     
 class BoolHandler(RefHandler):
   def dump_ref (self, obj, dumper, s): s.write("b%s" % int(obj))
 
 class IntHandler(RefHandler):
   def dump_ref (self, obj, dumper, s): s.write("i%s\n" % obj)
-  
-class LongHandler(RefHandler):
-  def dump_ref (self, obj, dumper, s): s.write("l%s\n" % obj)
   
 class FloatHandler(RefHandler):
   def dump_ref (self, obj, dumper, s): s.write("f%s\n" % obj)
@@ -376,7 +366,7 @@ A Cerealizer Handler that can support any new-style class instances, old-style c
 as well as C-defined types (although it may not save the C-side data)."""
   def __init__(self, Class, classname = ""):
     self.Class          = Class
-    self.Class_new      = getattr(Class, "__new__"     , instance)
+    self.Class_new      = Class.__new__
     self.Class_getstate = getattr(Class, "__getstate__", None)  # Check for and store __getstate__ and __setstate__ now
     self.Class_setstate = getattr(Class, "__setstate__", None)  # so we are are they are not modified in the class or the object
     if classname: self.classname = "%s\n"    % classname
@@ -557,11 +547,10 @@ unexpected calls to register()."""
   logger.info("Configuration frozen")
   
 register(type(None), NoneHandler     ())
-register(str       , StrHandler      ())
-register(str   , UnicodeHandler  ())
+register(bytes     , BytesHandler    ())
+register(str       , UnicodeHandler  ())
 register(bool      , BoolHandler     ())
 register(int       , IntHandler      ())
-register(int      , LongHandler     ())
 register(float     , FloatHandler    ())
 register(complex   , ComplexHandler  ())
 register(dict      , DictHandler     ())
@@ -591,12 +580,14 @@ Serializes object OBJ and returns the serialized string.
 PROTOCOL is unused, it exists only for compatibility with Pickle."""
   s = StringIO()
   Dumper().dump(obj, s)
-  return s.getvalue()
+  return s.getvalue().encode("latin-1")
 
 def loads(string):
   """loads(file) -> obj
 
-De-serializes an object from STRING."""
+De-serializes an object from STRING (bytes)."""
+  if isinstance(string, bytes):
+    string = string.decode("latin-1")
   return Dumper().undump(StringIO(string))
 
 

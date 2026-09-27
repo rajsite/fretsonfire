@@ -4,7 +4,7 @@ from .MidiOutStream import MidiOutStream
 from .RawOutstreamFile import RawOutstreamFile
 
 from .constants import *
-from .DataTypeConverters import fromBytes, writeVar
+from .DataTypeConverters import fromBytes, writeVar, writeBew
 
 class MidiOutFile(MidiOutStream):
 
@@ -128,7 +128,7 @@ class MidiOutFile(MidiOutStream):
         data: list of values in range(128)
         """
         sysex_len = writeVar(len(data)+1)
-        self.event_slice(chr(SYSTEM_EXCLUSIVE) + sysex_len + data + chr(END_OFF_EXCLUSIVE))
+        self.event_slice(bytes([SYSTEM_EXCLUSIVE]) + sysex_len + data + bytes([END_OFF_EXCLUSIVE]))
 
 
     #####################
@@ -166,7 +166,7 @@ class MidiOutFile(MidiOutStream):
         """
         No values passed
         """
-        self.event_slice(chr(TUNING_REQUEST))
+        self.event_slice(bytes([TUNING_REQUEST]))
 
             
     #########################
@@ -181,7 +181,7 @@ class MidiOutFile(MidiOutStream):
         
         """        
         raw = self.raw_out
-        raw.writeSlice('MThd')
+        raw.writeSlice(FILE_HEADER)
         bew = raw.writeBew
         bew(6, 4) # header size
         bew(format, 2)
@@ -246,7 +246,7 @@ class MidiOutFile(MidiOutStream):
         """
         value: 0-65535
         """
-        self.meta_slice(meta_type, writeBew(value, 2))
+        self.meta_slice(SEQUENCE_NUMBER, writeBew(value, 2))
 
 
     def text(self, text):
@@ -312,7 +312,7 @@ class MidiOutFile(MidiOutStream):
         channel: midi channel for subsequent data
         (deprecated in the spec)
         """
-        self.meta_slice(MIDI_CH_PREFIX, chr(channel))
+        self.meta_slice(MIDI_CH_PREFIX, bytes([channel]))
 
 
     def midi_port(self, value):
@@ -320,7 +320,7 @@ class MidiOutFile(MidiOutStream):
         """
         value: Midi port (deprecated in the spec)
         """
-        self.meta_slice(MIDI_CH_PREFIX, chr(value))
+        self.meta_slice(MIDI_CH_PREFIX, bytes([value]))
 
 
     def tempo(self, value):

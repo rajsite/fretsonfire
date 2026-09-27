@@ -176,8 +176,8 @@ TIME_SIGNATURE  = 0x58      # 58 04 nn dd cc bb
 KEY_SIGNATURE   = 0x59      # ??? len text...
 SPECIFIC        = 0x7F      # Sequencer specific event
 
-FILE_HEADER     = 'MThd'
-TRACK_HEADER    = 'MTrk'
+FILE_HEADER     = b'MThd'
+TRACK_HEADER    = b'MTrk'
 
 ###################################################
 ## System Realtime messages

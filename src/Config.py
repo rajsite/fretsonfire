@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -20,7 +20,7 @@
 # MA  02110-1301, USA.                                              #
 #####################################################################
 
-from configparser import ConfigParser
+from configparser import RawConfigParser
 import Log
 import Resource
 import os
@@ -28,6 +28,22 @@ import os
 encoding  = "iso-8859-1"
 config    = None
 prototype = {}
+
+# Called with the file name after any configuration file is written.
+writeHooks = []
+
+def createParser():
+  """Create a parser that behaves like the Python 2 ConfigParser used by the game."""
+  return RawConfigParser(strict = False)
+
+def readParser(parser, fileName):
+  return parser.read(fileName, encoding = encoding)
+
+def writeParser(parser, fileName):
+  with open(fileName, "w", encoding = encoding, errors = "replace") as f:
+    parser.write(f)
+  for hook in writeHooks:
+    hook(fileName)
 
 class Option:
   """A prototype configuration key."""
@@ -74,13 +90,13 @@ class Config:
     self.prototype = prototype
 
     # read configuration
-    self.config = ConfigParser()
+    self.config = createParser()
 
     if fileName:
       if not os.path.isfile(fileName):
         path = Resource.getWritableResourcePath()
         fileName = os.path.join(path, fileName)
-      self.config.read(fileName)
+      readParser(self.config, fileName)
   
     self.fileName  = fileName
   
@@ -138,16 +154,8 @@ class Config:
     if not self.config.has_section(section):
       self.config.add_section(section)
 
-    if type(value) == str:
-      value = value.encode(encoding)
-    else:
-      value = str(value)
-
-    self.config.set(section, option, value)
-    
-    f = open(self.fileName, "w")
-    self.config.write(f)
-    f.close()
+    self.config.set(section, option, str(value))
+    writeParser(self.config, self.fileName)
 
 def get(section, option):
   """

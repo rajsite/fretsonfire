@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -20,7 +20,7 @@
 # MA  02110-1301, USA.                                              #
 #####################################################################
 
-from configparser import ConfigParser
+import Config
 from OpenGL.GL import *
 import math
 import Log
@@ -225,13 +225,13 @@ class Stage(object):
   def __init__(self, guitarScene, configFileName):
     self.scene            = guitarScene
     self.engine           = guitarScene.engine
-    self.config           = ConfigParser()
+    self.config           = Config.createParser()
     self.backgroundLayers = []
     self.foregroundLayers = []
     self.textures         = {}
     self.reset()
 
-    self.config.read(configFileName)
+    Config.readParser(self.config, configFileName)
 
     # Build the layers
     for i in range(32):
@@ -334,7 +334,7 @@ class Stage(object):
     if quarterBeat > self.quarterBeat:
       self.triggerQuarterBeat(pos, quarterBeat)
 
-    beat = quarterBeat / 4
+    beat = quarterBeat // 4
 
     if beat > self.beat:
       self.triggerBeat(pos, beat)

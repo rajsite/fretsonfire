@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -128,8 +128,8 @@ class GetText(Layer, KeyListener):
       self.accepted = True
     elif key == pygame.K_BACKSPACE and not self.accepted:
       self.text = self.text[:-1]
-    elif str and ord(str) > 31 and not self.accepted:
-      self.text += str(str)
+    elif str and ord(str[0]) > 31 and not self.accepted:
+      self.text += str
     return True
     
   def run(self, ticks):
@@ -510,8 +510,8 @@ class SongChooser(Layer, KeyListener):
         self.items.sort(key=lambda l: (l.name.lower()))
     elif key == pygame.K_TAB:
       self.cassetteShow = not self.cassetteShow
-    elif str and ord(str) > 31 and not self.accepted:
-      self.searchText += str(str)
+    elif str and ord(str[0]) > 31 and not self.accepted:
+      self.searchText += str
       self.doSearch()
     return True
 

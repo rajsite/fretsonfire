@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -21,7 +21,7 @@
 #####################################################################
 
 import pickle
-from io import StringIO
+from io import BytesIO
 
 import Network
 import Engine
@@ -80,7 +80,7 @@ class MessageHandler:
   def handleMessage(self, sender, message):
     f = None
     try:
-      n = "handle" + str(message.__class__).split(".")[-1]
+      n = "handle" + message.__class__.__name__
       f = getattr(self, n)
     except AttributeError:
       return None
@@ -98,7 +98,7 @@ class Phrasebook:
     self.sentClasses = {}
 
   def serialize(data):
-    s = StringIO()
+    s = BytesIO()
     pickle.Pickler(s, protocol = 2).dump(data)
     return s.getvalue()
   serialize = staticmethod(serialize)

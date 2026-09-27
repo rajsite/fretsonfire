@@ -1,7 +1,6 @@
 # -*- coding: ISO-8859-1 -*-
 
 # standard library imports
-from types import StringType
 from struct import unpack
 
 # custom import
@@ -28,7 +27,7 @@ class RawInstreamFile:
         copy them into memory.
         """
         if infile:
-            if type(infile) in [str, str]:
+            if isinstance(infile, str):
                 infile = open(infile, 'rb')
                 self.data = infile.read()
                 infile.close()
@@ -36,14 +35,14 @@ class RawInstreamFile:
                 # don't close the f
                 self.data = infile.read()
         else:
-            self.data = ''
+            self.data = b''
         # start at beginning ;-)
         self.cursor = 0
 
 
     # setting up data manually
     
-    def setData(self, data=''):
+    def setData(self, data=b''):
         "Sets the data from a string."
         self.data = data
     

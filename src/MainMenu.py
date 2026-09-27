@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -106,7 +106,7 @@ class MainMenu(BackgroundLayer):
           traceback.print_exc()
           raise
       except socket.error as e:
-        Dialogs.showMessage(self.engine, str(e[1]))
+        Dialogs.showMessage(self.engine, str(e))
       except KeyboardInterrupt:
         pass
       except Exception as e:

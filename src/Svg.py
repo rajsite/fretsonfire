@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -161,7 +161,7 @@ class SvgRenderStyle:
       if not defs:
         Log.warn("No patterns or gradients defined.")
         return None
-      m = re.match("url\(#(.+)\)", color)
+      m = re.match(r"url\(#(.+)\)", color)
       if m:
         id = m.group(1)
         if not id in defs:
@@ -256,7 +256,7 @@ class SvgTransform:
         dx, dy = [float(c) for c in m.groups()]
         self.matrix[0, 2] += dx
         self.matrix[1, 2] += dy
-      m = re.match(r"matrix\(\s*" + "\s*,\s*".join(["(.+?)"] * 6) + r"\s*\)", transform)
+      m = re.match(r"matrix\(\s*" + r"\s*,\s*".join(["(.+?)"] * 6) + r"\s*\)", transform)
       if m:
         e = [float(c) for c in m.groups()]
         e = [e[0], e[2], e[4], e[1], e[3], e[5], 0, 0, 1]
@@ -539,9 +539,9 @@ class SvgDrawing:
     self.transform = SvgTransform()
 
     # Detect the type of data passed in
-    if type(svgData) == file:
+    if hasattr(svgData, "read"):
       self.svgData = svgData.read()
-    elif type(svgData) == str:
+    elif isinstance(svgData, str):
       bitmapFile = svgData.replace(".svg", ".png")
       # Load PNG files directly
       if svgData.endswith(".png"):

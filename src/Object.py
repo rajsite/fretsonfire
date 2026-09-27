@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -21,7 +21,7 @@
 #####################################################################
 
 import pickle
-from io import StringIO
+from io import BytesIO
 
 class Serializer(pickle.Pickler):
   def persistent_id(self, obj):
@@ -36,12 +36,12 @@ class Unserializer(pickle.Unpickler):
     return self.manager.getObject(id)
 
 def serialize(data):
-  file = StringIO()
+  file = BytesIO()
   Serializer(file, protocol = 2).dump(data)
   return file.getvalue()
 
 def unserialize(manager, data):
-  return Unserializer(manager, StringIO(data)).load()
+  return Unserializer(manager, BytesIO(data)).load()
 
 class Manager:
   MSG_CREATE = 0

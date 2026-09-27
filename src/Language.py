@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -42,9 +42,7 @@ if language:
   try:
     trFile = os.path.join(Version.dataPath(), "translations", "%s.mo" % language.lower().replace(" ", "_"))
     catalog = gettext.GNUTranslations(open(trFile, "rb"))
-    def translate(m):
-      return catalog.gettext(m).decode("utf-8")
-    _ = translate
+    _ = catalog.gettext
   except Exception as x:
     Log.warn("Unable to select language '%s': %s" % (language, x))
     language = None

@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -20,15 +20,28 @@
 # MA  02110-1301, USA.                                              #
 #####################################################################
 
-import asyncore
-import socket
+"""
+In-process transport for the game's client/server sessions.
+
+The original implementation used asyncore TCP sockets on the loopback
+interface. asyncore no longer exists in Python 3.12+ and browsers cannot open
+raw sockets, so connections to a local server are paired in memory instead.
+Packets are still delivered only from communicate(), preserving the original
+event ordering.
+"""
+
+import collections
 import struct
-import time
-import io
 
 import Log
 
 PORT = 12345
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1", "")
+
+# port -> Server listening on it
+_servers = {}
+# live connections, in creation order
+_connections = []
 
 class ObjectCollection(dict):
   def __init__(self):
@@ -62,41 +75,44 @@ class ObjectCollection(dict):
     self.idCounter += 1
     return self.idCounter
   
-class Connection(asyncore.dispatcher):
+class NetworkError(IOError):
+  pass
+
+class Connection(object):
   def __init__(self, sock = None):
-    asyncore.dispatcher.__init__(self, sock = sock)
-    self.id = None
-    self.server = None
-    self._buffer = []
-    self._sentSizeField = False
-    self._receivedSizeField = 0
-    self._packet = io.StringIO()
+    self.id        = None
+    self.server    = None
+    self.peer      = None
+    self.addr      = None
+    self.connected = False
+    self._outbox   = collections.deque()
+    self._closed   = False
+    self._peerClosed = False
+    _connections.append(self)
 
-    if not sock:
-      self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-
-  #def __getattr__(self, name):
-  #  print ">>>", name
-  #  return asyncore.dispatcher.__getattr__(self, name)
+    # When created by a server, 'sock' is the client end to pair with.
+    if sock is not None:
+      self.peer, sock.peer = sock, self
+      self.addr = sock.addr
+      self.connected = sock.connected = True
 
   def connect(self, host, port = PORT):
     assert self.id is None
 
-    asyncore.dispatcher.connect(self, (host, port))
-
-    # do a blocking connect
-    n = 0
-    while not self.connected and n < 600:
-      communicate()
-      n += 1
-      if n > 100:
-        time.sleep(.1)
+    if host not in LOCAL_HOSTS:
+      raise NetworkError("Only local games are supported (cannot connect to %s)." % host)
+    server = _servers.get(port)
+    if not server:
+      raise NetworkError("No game server is running on port %d." % port)
+    self.addr = (host, port)
+    server._accept(self)
+    communicate()
 
   def accept(self, id):
     assert self.id is None
     
     self.id = id
-    self._buffer.append(struct.pack("H", self.id))
+    self._outbox.append(struct.pack("H", self.id))
     self.handleRegistration()
 
   def setServer(self, server):
@@ -105,86 +121,57 @@ class Connection(asyncore.dispatcher):
   def handleConnect(self):
     pass
 
-  def handle_connect(self):
-    return self.handleConnect()
+  def _receive(self, packet):
+    # The first packet contains the ID
+    if self.id is None:
+      self.id = struct.unpack("H", packet)[0]
+      self.handleRegistration()
+    else:
+      self.handlePacket(packet)
 
-  def handle_read(self):
-    try:
-      if not self._receivedSizeField:
-        data = self.recv(2)
-        if data:
-          self._receivedSizeField = struct.unpack("H", data)[0]
-        return
-      data = self.recv(self._receivedSizeField)
-      if data:
-        self._receivedSizeField -= len(data)
-        self._packet.write(data)
-        if not self._receivedSizeField:
-          # The first packet contains the ID
-          if self.id is None:
-            self.id = struct.unpack("H", self._packet.getvalue())[0]
-            self.handleRegistration()
-          else:
-            self.handlePacket(self._packet.getvalue())
-          self._packet.truncate()
-          self._packet.seek(0)
-    except socket.error as e:
-      Log.error("Socket error while receiving: %s" % str(e))
-
-  def writable(self):
-    return len(self._buffer) > 0
+  def _deliver(self):
+    while self._outbox and self.peer and not self.peer._closed:
+      self.peer._receive(self._outbox.popleft())
 
   def sendPacket(self, packet):
-    self._buffer.append(packet)
+    self._outbox.append(packet)
 
   def handlePacket(self, packet):
     pass
 
   def close(self):
-    asyncore.dispatcher.close(self)
-    self.handle_close()
+    if self._closed:
+      return
+    self._closed   = True
+    self.connected = False
+    if self in _connections:
+      _connections.remove(self)
+    peer, self.peer = self.peer, None
+    # Like a socket EOF, the other end notices the close on the next communicate().
+    if peer and not peer._closed:
+      peer._peerClosed = True
+    self.handleClose()
 
   def handleClose(self):
     if self.server:
       self.server.handleConnectionClose(self)
     self.id = None
 
-  def handle_close(self):
-    return self.handleClose()
-
   def handleRegistration(self):
     pass
 
-  def handle_write(self):
-    try:
-      data = self._buffer[0]
-      if not self._sentSizeField:
-        self.send(struct.pack("H", len(data)))
-        self._sentSizeField = True
-      sent = self.send(data)
-      data = data[sent:]
-      if data:
-        self._buffer[0] = data
-      else:
-        self._buffer = self._buffer[1:]
-        self._sentSizeField = False
-    except socket.error as e:
-      Log.error("Socket error while sending: %s" % str(e))
-
-class Server(asyncore.dispatcher):
+class Server(object):
   def __init__(self, port = PORT, localOnly = True):
-    asyncore.dispatcher.__init__(self)
-    self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-    self.set_reuse_addr()
-    self.bind((localOnly and "localhost" or "", port))
-    self.listen(5)
+    if port in _servers:
+      raise NetworkError("A game server is already running on port %d." % port)
+    self.port = port
     self.clients = {}
     self.__idCounter = 0
+    _servers[port] = self
         
-  def handle_accept(self):
-    sock, addr = self.accept()
+  def _accept(self, clientConnection):
     self.__idCounter += 1
-    conn = self.createConnection(sock = sock)
+    conn = self.createConnection(sock = clientConnection)
     conn.setServer(self)
     conn.accept(self.__idCounter)
     self.clients[self.__idCounter] = conn
@@ -197,15 +184,13 @@ class Server(asyncore.dispatcher):
     pass
 
   def close(self):
-    asyncore.dispatcher.close(self)
-    self.handle_close()
+    if _servers.get(self.port) is self:
+      del _servers[self.port]
+    self.handleClose()
 
   def handleClose(self):
     for c in list(self.clients.values()):
       c.close()
-
-  def handle_close(self):
-    return self.handleClose()
 
   def handleConnectionClose(self, connection):
     if connection.id in self.clients:
@@ -223,8 +208,15 @@ class Server(asyncore.dispatcher):
 
 def communicate(cycles = 1):
   while cycles:
-    asyncore.poll(0, asyncore.socket_map)
+    for c in list(_connections):
+      c._deliver()
+    for c in list(_connections):
+      if c._peerClosed:
+        c.close()
     cycles -= 1
 
 def shutdown():
-  asyncore.close_all()
+  for c in list(_connections):
+    c.close()
+  for s in list(_servers.values()):
+    s.close()

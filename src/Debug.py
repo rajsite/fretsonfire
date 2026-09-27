@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -34,7 +34,7 @@ class DebugLayer(Layer):
     #gc.set_debug(gc.DEBUG_LEAK)
 
   def className(self, instance):
-    return str(instance.__class__).split(".")[1]
+    return instance.__class__.__name__
   
   def render(self, visibility, topMost):
     self.engine.view.setOrthogonalProjection(normalize = True)
@@ -82,7 +82,7 @@ class DebugLayer(Layer):
         
       x, y = (.05, .55)
       font.render("System:", (x, y), scale = scale)
-      font.render("%d threads" % threading.activeCount(), (x + .1, y), scale = scale)
+      font.render("%d threads" % threading.active_count(), (x + .1, y), scale = scale)
       y += h
       font.render("%.2f fps" % self.engine.timer.fpsEstimate, (x + .1, y), scale = scale)
       y += h

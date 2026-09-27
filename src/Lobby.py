@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -120,7 +120,7 @@ class Lobby(Layer, KeyListener, MessageHandler):
         c = i * .05
         glColor3f(*colorsys.hsv_to_rgb(.75, c, 1))
         glPushMatrix()
-        s = .25 * (math.sin(i / 2 + self.time / 4) + 2)
+        s = .25 * (math.sin(i // 2 + self.time / 4) + 2)
         glTranslate(-s * w / 2, -s * h / 2, 0)
         font.render(ch, (x, y), scale = 0.002 * s)
         glPopMatrix()

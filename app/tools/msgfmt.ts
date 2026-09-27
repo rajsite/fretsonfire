@@ -1,7 +1,7 @@
-// Minimal GNU gettext .po -> .mo compiler (msgfmt subset: msgctxt, plurals, no fuzzy).
-// Strings are kept as raw bytes (latin1 round-trip) so the header charset stays authoritative.
+// Minimal GNU gettext `msgcat | msgfmt` replacement: merges .po catalogs (msgctxt, plurals,
+// fuzzy entries skipped) and writes a UTF-8 encoded .mo file.
 
-interface PoEntry {
+export interface PoEntry {
   msgctxt?: string;
   msgid?: string;
   msgid_plural?: string;
@@ -29,8 +29,13 @@ function unescape(s: string): string {
   });
 }
 
+function decodePo(buffer: Buffer): string {
+  const charset = /charset=([\w-]+)/i.exec(buffer.toString('latin1'))?.[1] ?? 'utf-8';
+  return new TextDecoder(charset.toLowerCase()).decode(buffer);
+}
+
 export function parsePo(buffer: Buffer): PoEntry[] {
-  const lines = buffer.toString('latin1').split(/\r?\n/);
+  const lines = decodePo(buffer).split(/\r?\n/);
   const entries: PoEntry[] = [];
   let cur: PoEntry | null = null;
   let field: Field | null = null;
@@ -82,14 +87,28 @@ export function parsePo(buffer: Buffer): PoEntry[] {
   return entries;
 }
 
-export function compilePo(buffer: Buffer): Buffer {
-  const entries = parsePo(buffer)
+// Earlier catalogs win for duplicate messages; the header charset is rewritten to UTF-8.
+export function compilePo(...buffers: Buffer[]): Buffer {
+  const seen = new Set<string>();
+  const merged: PoEntry[] = [];
+  for (const buffer of buffers) {
+    for (const e of parsePo(buffer)) {
+      const key = `${e.msgctxt ?? ''}\x04${e.msgid ?? ''}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (e.msgid === '' && e.msgstr) {
+        e.msgstr[0] = e.msgstr[0].replace(/charset=[\w-]+/i, 'charset=UTF-8');
+      }
+      merged.push(e);
+    }
+  }
+  const entries = merged
     .filter((e) => e.msgstr?.some((s) => s))
     .map((e): [Buffer, Buffer] => {
       let id = e.msgid ?? '';
       if (e.msgid_plural !== undefined) id += '\0' + e.msgid_plural;
       if (e.msgctxt !== undefined) id = e.msgctxt + '\x04' + id;
-      return [Buffer.from(id, 'latin1'), Buffer.from((e.msgstr ?? []).join('\0'), 'latin1')];
+      return [Buffer.from(id, 'utf8'), Buffer.from((e.msgstr ?? []).join('\0'), 'utf8')];
     })
     .sort((a, b) => Buffer.compare(a[0], b[0]));
 

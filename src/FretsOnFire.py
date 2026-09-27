@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-
 #####################################################################
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -25,22 +25,6 @@ Main game executable.
 """
 import sys
 import os
-
-# This trickery is needed to get OpenGL 3.x working with py2exe
-if hasattr(sys, "frozen") and os.name == "nt":
-  import ctypes
-  from ctypes import util
-  sys.path.insert(0, "data/PyOpenGL-3.0.0a5-py2.5.egg")
-  sys.path.insert(0, "data/setuptools-0.6c8-py2.5.egg")
-
-# Register the latin-1 encoding
-import codecs
-import encodings.iso8859_1
-import encodings.utf_8
-codecs.register(lambda encoding: encodings.iso8859_1.getregentry())
-codecs.register(lambda encoding: encodings.utf_8.getregentry())
-assert codecs.lookup("iso-8859-1")
-assert codecs.lookup("utf-8")
 
 from GameEngine import GameEngine
 from MainMenu import MainMenu
@@ -76,12 +60,6 @@ if __name__ == "__main__":
     engine.setStartupLayer(menu)
 
     try:
-      import psyco
-      psyco.profile()
-    except:
-      Log.warn("Unable to enable psyco.")
-
-    try:
       while engine.run():
         pass
     except KeyboardInterrupt:
@@ -101,11 +79,7 @@ if __name__ == "__main__":
           else:
             os.execl("./FretsOnFire", "./FretsOnFire", *sys.argv[1:])
         else:
-          if os.name == "nt":
-            bin = "c:/python25/python"
-          else:
-            bin = "/usr/bin/python"
-          os.execl(bin, bin, "FretsOnFire.py", *sys.argv[1:])
+          os.execl(sys.executable, sys.executable, "FretsOnFire.py", *sys.argv[1:])
       except:
         Log.warn("Restart failed.")
         raise

@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -25,13 +25,13 @@ import os
 import Resource
 
 quiet = True
-logFile = open(os.path.join(Resource.getWritableResourcePath(), "fretsonfire.log"), "w")
 encoding = "iso-8859-1"
+logFile = open(os.path.join(Resource.getWritableResourcePath(), "fretsonfire.log"), "w", encoding = encoding, errors = "replace")
 
 if "-v" in sys.argv:
   quiet = False
   
-if os.name == "posix":
+if os.name == "posix" and sys.platform != "emscripten":
   labels = {
     "warn":   "\033[1;33m(W)\033[0m",
     "debug":  "\033[1;34m(D)\033[0m",
@@ -47,7 +47,7 @@ else:
   }
 
 def log(cls, msg):
-  msg = str(msg).encode(encoding, "ignore")
+  msg = str(msg)
   if not quiet:
     print(labels[cls] + " " + msg)
   print(labels[cls] + " " + msg, file=logFile)

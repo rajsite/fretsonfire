@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -167,7 +167,7 @@ class Input(Task):
   def decodeJoystickHat(self, id):
     id -= 0x30000
     v = id & 0xf
-    x, y = (v % 3) - 1, (v / 3) - 1
+    x, y = (v % 3) - 1, (v // 3) - 1
     return (id >> 8, (id >> 4) & 0xf, (x, y))
 
   def getKeyName(self, id):
@@ -186,8 +186,8 @@ class Input(Task):
     pygame.event.pump()
     for event in pygame.event.get():
       if event.type == pygame.KEYDOWN:
-        if not self.broadcastEvent(self.priorityKeyListeners, "keyPressed", event.key, event.str):
-          self.broadcastEvent(self.keyListeners, "keyPressed", event.key, event.str)
+        if not self.broadcastEvent(self.priorityKeyListeners, "keyPressed", event.key, event.unicode):
+          self.broadcastEvent(self.keyListeners, "keyPressed", event.key, event.unicode)
       elif event.type == pygame.KEYUP:
         if not self.broadcastEvent(self.priorityKeyListeners, "keyReleased", event.key):
           self.broadcastEvent(self.keyListeners, "keyReleased", event.key)

@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -21,6 +21,7 @@
 #####################################################################
 
 import os
+import sys
 from queue import Queue, Empty
 from threading import Thread, BoundedSemaphore
 import time
@@ -31,9 +32,14 @@ from Task import Task
 import Log
 import Version
 
-class Loader(Thread):
+# Browsers cannot start threads: loaders then run one per frame from Resource.run().
+threadedLoading = sys.platform != "emscripten"
+
+# In the browser the data directory is an in-memory copy, so writes must go to the persistent writable path.
+readOnlyData = sys.platform == "emscripten"
+
+class Loader(object):
   def __init__(self, target, name, function, resultQueue, loaderSemaphore, onLoad = None):
-    Thread.__init__(self)
     self.semaphore   = loaderSemaphore
     self.target      = target
     self.name        = name
@@ -44,16 +50,22 @@ class Loader(Thread):
     self.exception   = None
     self.time        = 0.0
     self.canceled    = False
+    self.loaded      = False
+    self.thread      = None
     if target and name:
       setattr(target, name, None)
 
+  def start(self):
+    if threadedLoading:
+      self.thread = Thread(target = self.run, daemon = True)
+      self.thread.start()
+
   def run(self):
     self.semaphore.acquire()
-    # Reduce priority on posix
-    if os.name == "posix":
-      os.nice(5)
-    self.load()
-    self.semaphore.release()
+    try:
+      self.load()
+    finally:
+      self.semaphore.release()
     self.resultQueue.put(self)
 
   def __str__(self):
@@ -68,8 +80,8 @@ class Loader(Thread):
       self.result = self.function()
       self.time = time.time() - start
     except:
-      import sys
       self.exception = sys.exc_info()
+    self.loaded = True
 
   def finish(self):
     if self.canceled:
@@ -78,7 +90,7 @@ class Loader(Thread):
     Log.notice("Loaded %s.%s in %.3f seconds" % (self.target.__class__.__name__, self.name, self.time))
     
     if self.exception:
-      raise self.exception[0](self.exception[1]).with_traceback(self.exception[2])
+      raise self.exception[1].with_traceback(self.exception[2])
     if self.target and self.name:
       setattr(self.target, self.name, self.result)
     if self.onLoad:
@@ -86,7 +98,10 @@ class Loader(Thread):
     return self.result
 
   def __call__(self):
-    self.join()
+    if self.thread:
+      self.thread.join()
+    elif not self.loaded:
+      self.run()
     return self.result
 
 class Resource(Task):
@@ -120,10 +135,10 @@ class Resource(Task):
       readOnlyPath = os.path.join(self.dataPaths[-1], *name)
       try:
         # First see if we can write to the original file
-        if os.access(readOnlyPath, os.W_OK):
+        if not readOnlyData and os.access(readOnlyPath, os.W_OK):
           return readOnlyPath
         # If the original file does not exist, see if we can write to its directory
-        if not os.path.isfile(readOnlyPath) and os.access(os.path.dirname(readOnlyPath), os.W_OK):
+        if not readOnlyData and not os.path.isfile(readOnlyPath) and os.access(os.path.dirname(readOnlyPath), os.W_OK):
           return readOnlyPath
       except:
         raise
@@ -161,6 +176,10 @@ class Resource(Task):
       return l
 
   def run(self, ticks):
+    if not threadedLoading:
+      pending = [l for l in self.loaders if not l.loaded]
+      if pending:
+        pending[0].run()
     try:
       loader = self.resultQueue.get_nowait()
       loader.finish()

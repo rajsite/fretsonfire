@@ -81,20 +81,50 @@ function sourceFor(rel: string): string | null {
   return null;
 }
 
-function moFiles(): string[] {
+// Mirrors data/translations/update.py: <language>.mo = msgcat fretsonfire_<id>.po tutorial_<id>.po
+const TRANSLATIONS: Record<string, string> = {
+  fr: 'french',
+  ger: 'german',
+  po: 'polish',
+  rus: 'russian',
+  sw: 'swedish',
+  por: 'brazilian_portuguese',
+  he: 'hebrew',
+  es: 'spanish',
+  it: 'italian',
+  gl: 'galician',
+  cz: 'czech',
+  fi: 'finnish',
+  hu: 'hungarian',
+  nl: 'dutch',
+  cs: 'czech',
+  tur: 'turkish',
+  hr: 'croatian',
+  eo: 'esperanto',
+  ltz: 'luxembourgish',
+};
+
+function translationSources(): Map<string, string[]> {
   const dir = path.join(ROOT, 'data', 'translations');
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith('.po'))
-    .map((f) => `data/translations/${f.slice(0, -3)}.mo`);
+  const byLanguage = new Map<string, string[]>();
+  for (const [id, language] of Object.entries(TRANSLATIONS)) {
+    const files = ['fretsonfire', 'tutorial']
+      .map((f) => path.join(dir, `${f}_${id}.po`))
+      .filter((f) => fs.existsSync(f));
+    if (files.length) byLanguage.set(`data/translations/${language}.mo`, files);
+  }
+  return byLanguage;
+}
+
+function moFiles(): string[] {
+  return [...translationSources().keys()];
 }
 
 // Translations are compiled from .po on demand, so .mo files are virtual.
 function readGameFile(rel: string): Buffer | null {
   if (rel.startsWith('data/translations/') && rel.endsWith('.mo')) {
-    const po = sourceFor(rel.slice(0, -3) + '.po');
-    return po && fs.existsSync(po) ? compilePo(fs.readFileSync(po)) : null;
+    const sources = translationSources().get(rel);
+    return sources ? compilePo(...sources.map((f) => fs.readFileSync(f))) : null;
   }
   const src = sourceFor(rel);
   return src && fs.existsSync(src) ? fs.readFileSync(src) : null;
