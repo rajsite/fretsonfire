@@ -1,0 +1,42 @@
+name: Set up app
+description: Node, npm dependencies and the Pyodide runtime subset used by the app.
+
+inputs:
+  pyodide-version:
+    description: Pyodide release to download.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v5
+      with:
+        node-version: 24
+        cache: npm
+        cache-dependency-path: app/package-lock.json
+
+    - name: Cache Pyodide
+      id: pyodide-cache
+      uses: actions/cache@v4
+      with:
+        path: app/pyodide
+        key: pyodide-${{ inputs.pyodide-version }}-subset-v1
+
+    # Only the runtime, its types and the three wheels the game loads are extracted from the full release.
+    - name: Download Pyodide
+      if: steps.pyodide-cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: app
+      env:
+        PYODIDE_VERSION: ${{ inputs.pyodide-version }}
+      run: |
+        curl -fsSL "https://github.com/pyodide/pyodide/releases/download/${PYODIDE_VERSION}/pyodide-${PYODIDE_VERSION}.tar.bz2" \
+          | tar -xj --wildcards \
+              'pyodide/pyodide*' 'pyodide/python_stdlib.zip' 'pyodide/ffi.d.ts' \
+              'pyodide/numpy-*.whl' 'pyodide/pillow-[0-9]*.whl' 'pyodide/pygame_ce-*.whl'
+        ls -la pyodide
+
+    - name: Install npm dependencies
+      shell: bash
+      working-directory: app
+      run: npm ci

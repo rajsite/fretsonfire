@@ -2,7 +2,6 @@ name: Build, test and deploy
 
 on:
   push:
-    branches: [master, pyodide]
   pull_request:
   workflow_dispatch:
 
@@ -15,6 +14,7 @@ concurrency:
 
 env:
   PYODIDE_VERSION: 314.0.7
+  BASE_PATH: /${{ github.event.repository.name }}/
 
 jobs:
   build:
@@ -25,37 +25,48 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v5
+      - uses: ./.github/actions/setup-app
         with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: app/package-lock.json
+          pyodide-version: ${{ env.PYODIDE_VERSION }}
+
+      - name: Build
+        run: |
+          npm run build -- --base "$BASE_PATH"
+          touch dist/.nojekyll
+
+      - name: Archive build
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: app/dist
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request' && (github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: app/dist
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup-app
+        with:
+          pyodide-version: ${{ env.PYODIDE_VERSION }}
 
       - uses: actions/setup-python@v6
         with:
           python-version: '3.14'
 
-      - name: Cache Pyodide
-        id: pyodide-cache
-        uses: actions/cache@v4
-        with:
-          path: app/pyodide
-          key: pyodide-${{ env.PYODIDE_VERSION }}-subset-v1
-
-      # Only the runtime, its types and the three wheels the game loads are extracted from the full release.
-      - name: Download Pyodide
-        if: steps.pyodide-cache.outputs.cache-hit != 'true'
-        run: |
-          curl -fsSL "https://github.com/pyodide/pyodide/releases/download/${PYODIDE_VERSION}/pyodide-${PYODIDE_VERSION}.tar.bz2" \
-            | tar -xj --wildcards \
-                'pyodide/pyodide*' 'pyodide/python_stdlib.zip' 'pyodide/ffi.d.ts' \
-                'pyodide/numpy-*.whl' 'pyodide/pillow-[0-9]*.whl' 'pyodide/pygame_ce-*.whl'
-          ls -la pyodide
-
-      - name: Install dependencies
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium chromium-headless-shell
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium chromium-headless-shell
 
       - name: Type check
         run: npm run typecheck
@@ -72,15 +83,15 @@ jobs:
       - name: Browser tests
         run: npm test
 
-      - name: Build
-        run: |
-          npm run build -- --base "/${{ github.event.repository.name }}/"
-          touch dist/.nojekyll
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: app/dist
 
       - name: Test the build under its Pages base path
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
-          FOF_BASE_URL: http://localhost:4173/${{ github.event.repository.name }}/
+          FOF_BASE_URL: http://localhost:4173${{ env.BASE_PATH }}
         run: |
           npx vite preview --base "$BASE_PATH" --port 4173 --strictPort &
           for i in $(seq 1 60); do curl -fsS "$FOF_BASE_URL" > /dev/null && break; sleep 1; done
@@ -96,14 +107,8 @@ jobs:
             app/test-results
           retention-days: 7
 
-      - name: Upload Pages artifact
-        if: github.event_name != 'pull_request' && (github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch')
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: app/dist
-
   deploy:
-    needs: build
+    needs: [build, test]
     if: github.event_name != 'pull_request' && (github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
