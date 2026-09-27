@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>13 - Gamepad recorder</title>
+    <link rel="stylesheet" href="../src/page.css" />
+    <style>
+      .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+      }
+      .pad {
+        border: 1px solid #333;
+        padding: 8px;
+        margin-bottom: 8px;
+        font: 12px/1.4 ui-monospace, monospace;
+      }
+      .pad .cells {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+      }
+      .pad .cell {
+        min-width: 56px;
+        padding: 2px 4px;
+        background: #222;
+        text-align: center;
+      }
+      .pad .cell.on {
+        background: #3a6;
+        color: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <header><a href="index.html">pages</a> / 13 - Gamepad recorder</header>
+    <main>
+      <p>
+        Connect a controller and press a button so the browser exposes it. Every connect, disconnect,
+        button and axis change is recorded with timestamps; download the JSON to profile a controller.
+      </p>
+      <div class="controls">
+        <button id="record">Start recording</button>
+        <button id="clear">Clear</button>
+        <button id="download">Download JSON</button>
+        <button id="copy">Copy JSON</button>
+        <label>Axis epsilon <input id="epsilon" type="number" value="0" min="0" max="1" step="0.001" /></label>
+        <label><input id="snapshots" type="checkbox" /> Full snapshot every frame</label>
+        <span id="status">idle</span>
+      </div>
+      <div id="pads"></div>
+      <div id="log"></div>
+    </main>
+    <script type="module" src="../src/pages/13-gamepad-recorder.ts"></script>
+  </body>
+</html>
