@@ -24,7 +24,7 @@ def run():
         for _ in range(n):
             tick()
             state["nestedFrames"] += 1
-        response = frame.wait(fetch("/game/manifest.json"))
+        response = frame.wait(fetch(fofjs.gameUrl + "/manifest.json"))
         state["fetchedBytes"] = len(frame.wait(response.text()))
 
     while state["frames"] < 120:

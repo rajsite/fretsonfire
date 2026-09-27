@@ -11,7 +11,7 @@ interface BootResult {
 }
 
 test('pyodide boots with numpy, pillow, pygame-ce and JSPI', async ({ page }) => {
-  await page.goto('/pages/01-boot.html');
+  await page.goto('pages/01-boot.html');
   const result = await waitForResult<BootResult>(page);
   expect(result.python).toMatch(/^3\.14\./);
   expect(result.platform).toBe('emscripten');

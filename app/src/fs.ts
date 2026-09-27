@@ -1,7 +1,10 @@
 // Game file system: manifest-driven fetch into MEMFS, lazy stubs, IDBFS persistence.
 import type { Pyodide } from './boot.ts';
 
+// MEMFS location of the game files.
 export const GAME_ROOT = '/game';
+// URL the game files are served from (the app may be hosted under a sub-path).
+export const GAME_URL = `${import.meta.env.BASE_URL}game`;
 export const WRITABLE_DIR = '/home/pyodide/.fretsonfire';
 
 export interface ManifestEntry {
@@ -32,7 +35,7 @@ async function fetchBytes(url: string): Promise<Uint8Array> {
 export async function installGameFiles(pyodide: Pyodide, options: InstallOptions = {}): Promise<GameFs> {
   const { include = () => true, onProgress, concurrency = 16 } = options;
   const FS = pyodide.FS;
-  const manifest: { files: ManifestEntry[] } = await (await fetch(`${GAME_ROOT}/manifest.json`)).json();
+  const manifest: { files: ManifestEntry[] } = await (await fetch(`${GAME_URL}/manifest.json`)).json();
   const entries = manifest.files.filter((f) => include(f.path));
   const result: GameFs = { lazy: new Map(), fetched: 0, bytes: 0 };
 
@@ -42,7 +45,7 @@ export async function installGameFiles(pyodide: Pyodide, options: InstallOptions
     FS.mkdirTree(fsPath.slice(0, fsPath.lastIndexOf('/')));
     if (entry.class === 'lazy') {
       FS.writeFile(fsPath, new Uint8Array(0));
-      result.lazy.set(fsPath, fsPath);
+      result.lazy.set(fsPath, `${GAME_URL}/${entry.path}`);
     } else {
       core.push(entry);
     }
@@ -53,7 +56,7 @@ export async function installGameFiles(pyodide: Pyodide, options: InstallOptions
   const worker = async () => {
     while (next < core.length) {
       const entry = core[next++];
-      const data = await fetchBytes(`${GAME_ROOT}/${entry.path}`);
+      const data = await fetchBytes(`${GAME_URL}/${entry.path}`);
       FS.writeFile(`${GAME_ROOT}/${entry.path}`, data);
       result.fetched++;
       result.bytes += data.length;

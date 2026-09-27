@@ -12,7 +12,7 @@ interface AudioResult {
 }
 
 test('song tracks play on Web Audio with a stable clock', async ({ page }) => {
-  await page.goto('/pages/07-audio.html?autostart&seconds=6');
+  await page.goto('pages/07-audio.html?autostart&seconds=6');
   const result = await waitForResult<AudioResult>(page, 120_000);
   expect(result.info.state).toBe('running');
   expect(result.monotonic).toBe(true);

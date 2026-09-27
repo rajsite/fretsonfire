@@ -1,6 +1,6 @@
 import { createPage } from '../page.ts';
 import { loadRuntime } from '../boot.ts';
-import { installGameFiles, setupPythonPath } from '../fs.ts';
+import { GAME_URL, installGameFiles, setupPythonPath } from '../fs.ts';
 import { nextFrame } from '../frame.ts';
 
 const { log, fail, done } = createPage();
@@ -17,6 +17,7 @@ try {
   setupPythonPath(pyodide);
   pyodide.registerJsModule('fofjs', {
     nextFrame,
+    gameUrl: GAME_URL,
     setCounter: (n: number) => (counter.textContent = String(n)),
     clickCount: () => clicks,
   });

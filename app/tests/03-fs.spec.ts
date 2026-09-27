@@ -14,12 +14,12 @@ interface FsResult {
 
 test('game files, song library and persistence', async ({ page }) => {
   const token = `t${Date.now()}`;
-  await page.goto(`/pages/03-fs.html?token=${token}`);
+  await page.goto(`pages/03-fs.html?token=${token}`);
   const first = await waitForResult<FsResult>(page);
   expect(Object.keys(first.songs).sort()).toEqual(['bangbang', 'defy', 'tutorial', 'twibmpg']);
   expect(first.songs.defy, JSON.stringify(first, null, 1)).toEqual(['Easy', 'Medium', 'Amazing']);
   expect(first.lazyGuitar.size).toBe(0);
-  expect(first.lazyGuitar.url).toBe('/game/data/songs/defy/guitar.ogg');
+  expect(first.lazyGuitar.url).toMatch(/\/game\/data\/songs\/defy\/guitar\.ogg$/);
   expect(first.lazyFetches).toBe(0);
   expect(first.translations).toContain('finnish.mo');
   expect(first.writablePath).toBe('/home/pyodide/.fretsonfire');
@@ -27,7 +27,7 @@ test('game files, song library and persistence', async ({ page }) => {
   expect(first.tests.failures + first.tests.errors, first.tests.output).toBe(0);
   expect(first.tests.run).toBeGreaterThan(5);
 
-  await page.goto(`/pages/03-fs.html?token=${token}&check`);
+  await page.goto(`pages/03-fs.html?token=${token}&check`);
   const second = await waitForResult<FsResult>(page);
   expect(second.storedToken).toBe(token);
 });

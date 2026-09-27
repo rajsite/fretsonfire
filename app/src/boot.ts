@@ -3,7 +3,7 @@ import type { PyodideAPI } from '../pyodide/pyodide';
 
 export type Pyodide = PyodideAPI;
 
-export const PYODIDE_URL = new URL('/pyodide/', location.origin).href;
+export const PYODIDE_URL = new URL(`${import.meta.env.BASE_URL}pyodide/`, location.origin).href;
 export const DEFAULT_PACKAGES = ['numpy', 'pillow', 'pygame-ce'];
 
 export interface RuntimeOptions {

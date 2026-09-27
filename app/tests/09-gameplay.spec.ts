@@ -18,7 +18,7 @@ test('plays a song with the built-in autoplay cheat and scores', async ({ page }
   await page.exposeFunction('__frame', (ms: number) => frameTimes.push(ms));
 
   // --play jumps straight into the single player lobby for the song.
-  await page.goto('/pages/08-engine.html?autostart&verbose&arg=--play&arg=defy');
+  await page.goto('pages/08-engine.html?autostart&verbose&arg=--play&arg=defy');
   await expect.poll(async () => (await state(page)).layers, { timeout: 120_000 }).toContain('GuitarSceneClient');
 
   // "uptomytempo" toggles the game's autoplay mode (and shows a message layer while it plays).

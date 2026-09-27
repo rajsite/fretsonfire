@@ -11,7 +11,7 @@ interface LoopResult {
 }
 
 test('blocking Python loops yield to the browser every frame', async ({ page }) => {
-  await page.goto('/pages/02-jspi-loop.html');
+  await page.goto('pages/02-jspi-loop.html');
   await expect.poll(async () => Number(await page.locator('#counter').textContent())).toBeGreaterThan(5);
   await page.locator('#clicker').click();
   await expect(page.locator('#clicks')).toHaveText('1');

@@ -10,7 +10,7 @@ interface InputResult {
 }
 
 test('keyboard and mouse reach the game Input task without browser side effects', async ({ page }) => {
-  await page.goto('/pages/06-input.html');
+  await page.goto('pages/06-input.html');
   await expect(page.locator('#status')).toHaveText('listening', { timeout: 60_000 });
   const url = page.url();
   for (const key of ['F1', 'F2', 'F5', 'Enter', 'Escape', 'a', 'ArrowLeft']) {

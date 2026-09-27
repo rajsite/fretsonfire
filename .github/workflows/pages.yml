@@ -1,0 +1,118 @@
+name: Build, test and deploy
+
+on:
+  push:
+    branches: [master, pyodide]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYODIDE_VERSION: 314.0.7
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Cache Pyodide
+        id: pyodide-cache
+        uses: actions/cache@v4
+        with:
+          path: app/pyodide
+          key: pyodide-${{ env.PYODIDE_VERSION }}-subset-v1
+
+      # Only the runtime, its types and the three wheels the game loads are extracted from the full release.
+      - name: Download Pyodide
+        if: steps.pyodide-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL "https://github.com/pyodide/pyodide/releases/download/${PYODIDE_VERSION}/pyodide-${PYODIDE_VERSION}.tar.bz2" \
+            | tar -xj --wildcards \
+                'pyodide/pyodide*' 'pyodide/python_stdlib.zip' 'pyodide/ffi.d.ts' \
+                'pyodide/numpy-*.whl' 'pyodide/pillow-[0-9]*.whl' 'pyodide/pygame_ce-*.whl'
+          ls -la pyodide
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium chromium-headless-shell
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Core Python tests (desktop CPython)
+        working-directory: .
+        env:
+          # The app's OpenGL shim stands in for PyOpenGL without a display.
+          PYTHONPATH: app/python
+        run: |
+          python -m pip install --quiet pygame-ce numpy pillow
+          python app/python/tests/test_core.py
+
+      - name: Browser tests
+        run: npm test
+
+      - name: Build
+        run: |
+          npm run build -- --base "/${{ github.event.repository.name }}/"
+          touch dist/.nojekyll
+
+      - name: Test the build under its Pages base path
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+          FOF_BASE_URL: http://localhost:4173/${{ github.event.repository.name }}/
+        run: |
+          npx vite preview --base "$BASE_PATH" --port 4173 --strictPort &
+          for i in $(seq 1 60); do curl -fsS "$FOF_BASE_URL" > /dev/null && break; sleep 1; done
+          npx playwright test tests/01-boot.spec.ts tests/10-index.spec.ts
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            app/playwright-report
+            app/test-results
+          retention-days: 7
+
+      - name: Upload Pages artifact
+        if: github.event_name != 'pull_request' && (github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: app/dist
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && (github.ref_name == github.event.repository.default_branch || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

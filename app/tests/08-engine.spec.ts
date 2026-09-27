@@ -16,7 +16,7 @@ test('game boots to the main menu and navigates menus', async ({ page }) => {
   page.on('console', (m) => {
     if (m.type() === 'error' || m.text().startsWith('(E)')) errors.push(m.text());
   });
-  await page.goto('/pages/08-engine.html?autostart&verbose');
+  await page.goto('pages/08-engine.html?autostart&verbose');
   await expect.poll(() => layers(page), { timeout: 90_000 }).toContain('Menu');
   await page.waitForTimeout(1500);
   await expect(page.locator('#game')).toHaveScreenshot('main-menu.png', { maxDiffPixelRatio: 0.03 });

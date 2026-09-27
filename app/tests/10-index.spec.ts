@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('index shows a start gate and boots the game after a click', async ({ page }) => {
-  await page.goto('/index.html');
+  await page.goto('index.html');
   const start = page.locator('#fof-start');
   await expect(start).toBeVisible();
   await start.click();

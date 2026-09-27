@@ -20,7 +20,7 @@ const expectedDraws: Record<string, number> = {
 
 for (const [scene, draws] of Object.entries(expectedDraws)) {
   test(`gl scene: ${scene}`, async ({ page }) => {
-    await page.goto(`/pages/04-gl-shim.html?scene=${scene}`);
+    await page.goto(`pages/04-gl-shim.html?scene=${scene}`);
     const result = await waitForResult<GlResult>(page);
     expect(result.glError).toBe(0);
     expect(result.draws).toBeGreaterThanOrEqual(draws);
