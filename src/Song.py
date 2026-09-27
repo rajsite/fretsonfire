@@ -942,10 +942,16 @@ def createSong(engine, name, guitarTrackName, backgroundTrackName, rhythmTrackNa
 def getDefaultLibrary(engine):
   return LibraryInfo(DEFAULT_LIBRARY, engine.resource.fileName(DEFAULT_LIBRARY, "library.ini"))
 
+def _songRoots(engine, library):
+  roots = [engine.resource.fileName(library), engine.resource.fileName(library, writable = True)]
+  # In the browser the writable copies (scores) of song pack songs outlive the pack itself.
+  if sys.platform == "emscripten":
+    roots = roots[:1]
+  return roots
+
 def getAvailableLibraries(engine, library = DEFAULT_LIBRARY):
   # Search for libraries in both the read-write and read-only directories
-  songRoots    = [engine.resource.fileName(library),
-                  engine.resource.fileName(library, writable = True)]
+  songRoots    = _songRoots(engine, library)
   libraries    = []
   libraryRoots = []
   
@@ -968,7 +974,7 @@ def getAvailableLibraries(engine, library = DEFAULT_LIBRARY):
 
 def getAvailableSongs(engine, library = DEFAULT_LIBRARY, includeTutorials = False):
   # Search for songs in both the read-write and read-only directories
-  songRoots = [engine.resource.fileName(library), engine.resource.fileName(library, writable = True)]
+  songRoots = _songRoots(engine, library)
   names = []
   for songRoot in songRoots:
     for name in os.listdir(songRoot):

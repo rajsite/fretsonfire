@@ -12,6 +12,7 @@ const PACK = { name: 'Test Pack.zip', mimeType: 'application/zip', buffer: Buffe
 interface PackResult {
   root: string;
   topLibraries: string[];
+  defaultSongs: string[];
   libraries: Record<string, { name: string; songs: Record<string, { name: string; difficulties: string[] }> }>;
   rbNotes: Record<string, number>;
   rbGuitarTrack: number;
@@ -78,6 +79,7 @@ test('a mounted pack is visible to the game library and song APIs', async ({ pag
   const r = await waitForResult<PackResult>(page);
   expect(r.root).toBe('/game/data/songs/Test Pack');
   expect(r.topLibraries).toEqual(['songs/Test Pack']);
+  expect(r.defaultSongs).toEqual(['bangbang', 'defy', 'tutorial', 'twibmpg']);
   expect(Object.keys(r.libraries).sort()).toEqual(['songs/Test Pack', 'songs/Test Pack/Classic', 'songs/Test Pack/Rock Band']);
   expect(r.libraries['songs/Test Pack'].name).toBe('Test Pack');
   const rb = r.libraries['songs/Test Pack/Rock Band'].songs;

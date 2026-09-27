@@ -19,7 +19,15 @@ def run(root):
   engine = FakeEngine()
   engine.resource = Resource.Resource(Version.dataPath())
   packLibrary = Song.DEFAULT_LIBRARY + "/" + os.path.basename(root)
+
+  # Writable copies left behind by songs and packs that are no longer loaded.
+  writable = Resource.getWritableResourcePath()
+  for leftover in ("songs/gone", "songs/Old Pack/01 Old Song"):
+    os.makedirs(os.path.join(writable, leftover), exist_ok = True)
+    with open(os.path.join(writable, leftover, "song.ini"), "w") as f:
+      f.write("[song]\nname = Leftover\n")
   result = {"topLibraries": [l.libraryName for l in Song.getAvailableLibraries(engine)]}
+  result["defaultSongs"] = sorted(s.songName for s in Song.getAvailableSongs(engine, includeTutorials = True))
 
   libraries = {}
   def walk(library):
