@@ -20,12 +20,18 @@
 # MA  02110-1301, USA.                                              #
 #####################################################################
 
+import sys
 import pygame
 import Log
 import Audio
 
 from Task import Task
 from Player import Controls
+
+if sys.platform == "emscripten":
+  from fof_web import input as browserInput
+else:
+  browserInput = None
 
 class KeyListener:
   def keyPressed(self, key, str):
@@ -79,32 +85,45 @@ class Input(Task):
     self.disableKeyRepeat()
 
     # Initialize joysticks
-    pygame.joystick.init()
     self.joystickAxes = {}
     self.joystickHats = {}
+    self.joysticks = []
 
-    self.joysticks = [pygame.joystick.Joystick(id) for id in range(pygame.joystick.get_count())]
+    if browserInput:
+      # Gamepads show up as events once the browser reports them.
+      for joy, buttons, axes, hats in browserInput.joysticks():
+        self.joystickAxes[joy] = [0] * axes
+        self.joystickHats[joy] = [(0, 0)] * hats
+    else:
+      pygame.joystick.init()
+      self.joysticks = [pygame.joystick.Joystick(id) for id in range(pygame.joystick.get_count())]
     for j in self.joysticks:
       j.init()
       self.joystickAxes[j.get_id()] = [0] * j.get_numaxes() 
       self.joystickHats[j.get_id()] = [(0, 0)] * j.get_numhats() 
-    Log.debug("%d joysticks found." % (len(self.joysticks)))
+    Log.debug("%d joysticks found." % (len(self.joystickAxes)))
 
     # Enable music events
     Audio.Music.setEndEvent(MusicFinished)
 
     # Custom key names
-    self.getSystemKeyName = pygame.key.name
+    self.getSystemKeyName = browserInput.keyName if browserInput else pygame.key.name
     pygame.key.name       = self.getKeyName
 
   def reloadControls(self):
     self.controls = Controls()
 
   def disableKeyRepeat(self):
-    pygame.key.set_repeat(0, 0)
+    if browserInput:
+      browserInput.setRepeat(False)
+    else:
+      pygame.key.set_repeat(0, 0)
 
   def enableKeyRepeat(self):
-    pygame.key.set_repeat(300, 30)
+    if browserInput:
+      browserInput.setRepeat(True)
+    else:
+      pygame.key.set_repeat(300, 30)
 
   def addMouseListener(self, listener):
     if not listener in self.mouseListeners:
@@ -171,20 +190,34 @@ class Input(Task):
     return (id >> 8, (id >> 4) & 0xf, (x, y))
 
   def getKeyName(self, id):
-    if id >= 0x30000:
+    # SDL2 keycodes for non-character keys are >= 0x40000000, above the joystick id ranges.
+    if 0x30000 <= id < 0x40000:
       joy, axis, pos = self.decodeJoystickHat(id)
       return "Joy #%d, hat %d %s" % (joy + 1, axis, pos)
-    elif id >= 0x20000:
+    elif 0x20000 <= id < 0x30000:
       joy, axis, end = self.decodeJoystickAxis(id)
       return "Joy #%d, axis %d %s" % (joy + 1, axis, (end == 1) and "high" or "low")
-    elif id >= 0x10000:
+    elif 0x10000 <= id < 0x20000:
       joy, but = self.decodeJoystickButton(id)
       return "Joy #%d, %s" % (joy + 1, chr(ord('A') + but))
     return self.getSystemKeyName(id)
 
+  def _getEvents(self):
+    if not browserInput:
+      pygame.event.pump()
+      return pygame.event.get()
+    events = browserInput.getEvents()
+    for event in events:
+      if event.type == pygame.JOYAXISMOTION:
+        axes = self.joystickAxes.setdefault(event.joy, [])
+        axes.extend([0] * (event.axis + 1 - len(axes)))
+      elif event.type == pygame.JOYHATMOTION:
+        hats = self.joystickHats.setdefault(event.joy, [])
+        hats.extend([(0, 0)] * (event.hat + 1 - len(hats)))
+    return events
+
   def run(self, ticks):
-    pygame.event.pump()
-    for event in pygame.event.get():
+    for event in self._getEvents():
       if event.type == pygame.KEYDOWN:
         if not self.broadcastEvent(self.priorityKeyListeners, "keyPressed", event.key, event.unicode):
           self.broadcastEvent(self.keyListeners, "keyPressed", event.key, event.unicode)

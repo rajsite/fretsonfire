@@ -2,7 +2,7 @@
 # -*- coding: iso-8859-1 -*-                                        #
 #                                                                   #
 # Frets on Fire                                                     #
-# Copyright (C) 2006 Sami Kyöstilä                                  #
+# Copyright (C) 2006 Sami Kyï¿½stilï¿½                                  #
 #                                                                   #
 # This program is free software; you can redistribute it and/or     #
 # modify it under the terms of the GNU General Public License       #
@@ -40,7 +40,9 @@ if hasattr(sys, "frozen"):
 #except ImportError:
 #  Log.warn("PyOGG not found. OGG files will be fully decoded prior to playing; expect absurd memory usage.")
 
-if "pyglet" in sys.modules:
+if sys.platform == "emscripten":
+  from fof_web.audio import Audio, Music, Channel, Sound, StreamingSound
+elif "pyglet" in sys.modules:
   class AudioPyglet(Task):
     def __init__(self, channels = 8):
       Task.__init__(self)
@@ -278,7 +280,9 @@ else: # pygame
     def fadeout(self, time):
       self.sound.fadeout(time)
 
-if "ogg.vorbis" in sys.modules:
+if sys.platform == "emscripten":
+  pass
+elif "ogg.vorbis" in sys.modules:
   import struct
   import numpy
 

@@ -16,7 +16,7 @@ export interface GameRuntimeOptions extends InstallOptions {
   // Extra functions exposed to Python through the `fofjs` module.
   bridge?: Record<string, unknown>;
   // Extra modules registered with pyodide.registerJsModule.
-  modules?: Record<string, object>;
+  modules?: Record<string, object> | ((rt: Omit<GameRuntime, 'bridge'>) => Record<string, object>);
 }
 
 export async function startGameRuntime(options: GameRuntimeOptions = {}): Promise<GameRuntime> {
@@ -33,7 +33,8 @@ export async function startGameRuntime(options: GameRuntimeOptions = {}): Promis
     ...options.bridge,
   };
   pyodide.registerJsModule('fofjs', bridge);
-  for (const [name, module] of Object.entries(options.modules ?? {})) {
+  const modules = typeof options.modules === 'function' ? options.modules({ pyodide, files, persist }) : options.modules;
+  for (const [name, module] of Object.entries(modules ?? {})) {
     pyodide.registerJsModule(name, module);
   }
   return { pyodide, files, persist, bridge };
