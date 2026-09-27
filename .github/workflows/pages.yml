@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      create-release:
+        description: Also publish the built site as a GitHub release
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -121,3 +126,32 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  release:
+    needs: [build, test]
+    if: github.event_name == 'workflow_dispatch' && inputs.create-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: build-${{ github.run_number }}
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: dist
+
+      - name: Zip build
+        run: cd dist && zip -qr "../fretsonfire-$TAG.zip" .
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" "fretsonfire-$TAG.zip" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Frets on Fire web build $TAG" \
+            --notes "Static site built from $GITHUB_SHA for the base path $BASE_PATH." \
+            --generate-notes
