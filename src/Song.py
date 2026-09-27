@@ -687,11 +687,11 @@ def _readVarLen(data, pos):
   return value, pos
 
 def _trackName(body):
-  """The first track name meta event before any channel message, or None."""
+  """The first track name meta event at the start of a track, or None."""
   pos, running = 0, 0
   while pos < len(body):
-    _, pos = _readVarLen(body, pos)
-    if pos >= len(body):
+    delta, pos = _readVarLen(body, pos)
+    if delta or pos >= len(body):
       break
     status = body[pos]
     if status & 0x80:
@@ -707,8 +707,11 @@ def _trackName(body):
     elif status in (0xf0, 0xf7):
       length, pos = _readVarLen(body, pos)
       pos += length
+    elif 0x80 <= status < 0xf0:
+      running = status
+      pos += 1 if 0xc0 <= status < 0xe0 else 2
     else:
-      return None
+      break
   return None
 
 def findGuitarTrack(noteFileName):

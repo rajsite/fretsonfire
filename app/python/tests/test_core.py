@@ -61,7 +61,7 @@ class MidiTest(unittest.TestCase):
       shutil.rmtree(tmp)
 
 
-def midiFile(tracks, format = 1):
+def midiFile(tracks, format = 1, program = False):
   """Standard MIDI file bytes; tracks are (name or None, [notes]) with notes played one beat apart."""
   def varLen(n):
     out = [n & 0x7f]
@@ -75,6 +75,8 @@ def midiFile(tracks, format = 1):
     body = b""
     if i == 0:
       body += b"\x00\xff\x51\x03" + (500000).to_bytes(3, "big")
+    if program:
+      body += b"\x00\xff\x7f\x03\x05\x0f\x09\x00\xc0\x00"
     if name is not None:
       body += b"\x00\xff\x03" + varLen(len(name)) + name.encode("latin-1")
     for note in notes:
@@ -116,6 +118,11 @@ class TrackSelectionTest(unittest.TestCase):
     track, notes, _ = self.load(midiFile([("song", []), ("t1 gems", [0x60]), ("TRIGGERS", [0x61])]))
     self.assertEqual(track, 1)
     self.assertEqual(notes[Song.AMAZING_DIFFICULTY], [0])
+
+  def testNameAfterProgramChange(self):
+    track, notes, _ = self.load(midiFile([("rawksd", []), ("PART DRUMS", [0x60]), ("PART GUITAR", [0x61])], program = True))
+    self.assertEqual(track, 2)
+    self.assertEqual(notes[Song.AMAZING_DIFFICULTY], [1])
 
   def testUnnamedFallsBackToFirstTracks(self):
     track, notes, diffs = self.load(midiFile([(None, [0x60]), ("", [0x54]), (None, [0x48])]))
