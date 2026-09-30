@@ -4,9 +4,12 @@ import { createPlatform, toggleFullscreen, type Platform } from './platform.ts';
 import { hasJspi } from './boot.ts';
 import { openSongPack, type SongPack } from './songpack.ts';
 import { describePad } from './gamepad.ts';
+import { TouchFrets } from './touch.ts';
 
 export interface GameState {
   layers: string[];
+  top?: string | null;
+  lefty?: boolean;
   score?: number;
   notesHit?: number;
 }
@@ -30,6 +33,7 @@ export interface LaunchOptions {
   log?: (msg: string, cls?: string) => void;
   argv?: string[];
   autostart?: boolean;
+  touchToggle?: HTMLButtonElement | null;
 }
 
 function showOverlay(overlay: HTMLElement, html: string): void {
@@ -133,6 +137,13 @@ export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> 
     return Promise.reject(new Error('JSPI not supported'));
   }
 
+  const touch = new TouchFrets({
+    container,
+    inSong: () => window.__fof?.state?.top === 'GuitarSceneClient',
+    lefty: () => !!window.__fof?.state?.lefty,
+    toggle: options.touchToggle,
+  });
+
   return new Promise((resolve, reject) => {
     let chosenPack: () => Promise<SongPack | undefined> = () => Promise.resolve(undefined);
     const start = async () => {
@@ -143,6 +154,7 @@ export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> 
       showOverlay(overlay, '<h2>Loading&hellip;</h2><p id="fof-progress"></p>');
       try {
         const platform = createPlatform(canvas, container, audioContext);
+        platform.input.addSource(touch);
         window.__fof!.platform = platform;
         const rt = await startGameRuntime({
           log: options.log,
@@ -164,9 +176,11 @@ export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> 
         });
         window.__fof!.runtime = rt;
         overlay.hidden = true;
+        touch.setActive(true);
         canvas.focus();
         const argv = JSON.stringify(options.argv ?? []);
         const outcome = (await rt.pyodide.runPythonAsync(`import fof_web.main as m; m.run(${argv})`)) as 'quit' | 'restart';
+        touch.setActive(false);
         await rt.persist();
         if (outcome === 'restart') {
           location.reload();
@@ -176,6 +190,7 @@ export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> 
         }
         resolve(outcome);
       } catch (e) {
+        touch.setActive(false);
         showOverlay(overlay, `<h2>Something went wrong</h2><pre>${String(e instanceof Error ? e.message : e).replace(/</g, '&lt;')}</pre>`);
         reject(e);
       }

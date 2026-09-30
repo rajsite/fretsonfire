@@ -37,6 +37,14 @@
         padding: 4px 10px;
         cursor: pointer;
       }
+      .fof-links button[aria-pressed='true'] {
+        background: #555;
+        border-color: #aaa;
+      }
+      /* Keep the fret bar clear of the links, which fullscreen hides. */
+      #container:not(:fullscreen) .fof-touch {
+        bottom: 30px;
+      }
     </style>
   </head>
   <body>
@@ -45,7 +53,7 @@
       <div id="overlay" class="fof-overlay" hidden></div>
     </div>
     <div class="fof-links">
-      Frets F1&ndash;F5, pick Enter &middot; <button id="fof-fullscreen" type="button">Fullscreen</button> (Alt+Enter) &middot; <a href="pages/index.html">dev pages</a>
+      Frets F1&ndash;F5, pick Enter &middot; <button id="fof-fullscreen" type="button">Fullscreen</button> (Alt+Enter) &middot; <button id="fof-touch-toggle" type="button" aria-pressed="false">Touch frets</button> &middot; <a href="pages/index.html">dev pages</a>
     </div>
     <script type="module" src="./src/main.ts"></script>
   </body>

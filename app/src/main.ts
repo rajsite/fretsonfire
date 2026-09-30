@@ -12,6 +12,8 @@ document.getElementById('fof-fullscreen')!.addEventListener('click', () => {
   // Keep keyboard input going to the game rather than the button.
   canvas.focus();
 });
+const touchToggle = document.getElementById('fof-touch-toggle') as HTMLButtonElement;
+touchToggle.addEventListener('click', () => canvas.focus());
 
 void launchGame({
   container,
@@ -19,4 +21,5 @@ void launchGame({
   overlay: document.getElementById('overlay')!,
   argv,
   autostart: params.has('autostart'),
+  touchToggle,
 });

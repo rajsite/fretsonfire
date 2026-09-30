@@ -22,6 +22,7 @@
 .fof-overlay {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -81,4 +82,93 @@
 }
 .fof-pack-error {
   color: #f88;
+}
+
+/* On-screen touch frets (touch.ts), drawn translucent over the bottom of the game. */
+.fof-touch {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.fof-touch[hidden] {
+  display: none;
+}
+.fof-touch button,
+.fof-touch-frets {
+  pointer-events: auto;
+  touch-action: none;
+}
+.fof-touch button {
+  font: 600 1rem system-ui, sans-serif;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 8px;
+  padding: 0;
+}
+.fof-touch-pause {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  min-width: 64px;
+  height: 40px;
+}
+.fof-touch-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: clamp(56px, 22vh, 120px);
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  box-sizing: border-box;
+}
+.fof-touch-frets {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+.fof-touch-frets.fof-touch-lefty {
+  flex-direction: row-reverse;
+}
+.fof-touch-fret {
+  flex: 1;
+  border: 2px solid var(--fret);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fret) 22%, transparent);
+}
+.fof-touch-fret.pressed {
+  background: color-mix(in srgb, var(--fret) 75%, transparent);
+}
+.fof-touch-fret:nth-child(1) {
+  --fret: #2c2;
+}
+.fof-touch-fret:nth-child(2) {
+  --fret: #e22;
+}
+.fof-touch-fret:nth-child(3) {
+  --fret: #ec0;
+}
+.fof-touch-fret:nth-child(4) {
+  --fret: #25e;
+}
+.fof-touch-fret:nth-child(5) {
+  --fret: #f80;
+}
+.fof-touch-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: clamp(44px, 10vw, 72px);
+}
+.fof-touch-nav button {
+  flex: 1;
+}
+.fof-touch-song .fof-touch-nav {
+  display: none;
 }
