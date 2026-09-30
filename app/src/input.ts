@@ -28,11 +28,17 @@ export interface InputOptions {
   onFullscreenToggle?: () => void;
 }
 
+// Extra event producers, such as the on-screen touch frets, drained with the rest once per frame.
+export interface InputSource {
+  drain(now: number): InputEvent[];
+}
+
 export class BrowserInput {
   private queue: InputEvent[] = [];
   private pads = new Map<number, PadState>();
   private padTimer: ReturnType<typeof setInterval> | null = null;
   private lastMouse: [number, number] | null = null;
+  private sources: InputSource[] = [];
   // Codes that are down; Android Chrome sends auto-repeat keydowns with repeat=false.
   private held = new Set<string>();
   keyRepeat = false;
@@ -101,6 +107,10 @@ export class BrowserInput {
     this.held.clear();
   }
 
+  addSource(source: InputSource): void {
+    this.sources.push(source);
+  }
+
   resized(width: number, height: number): void {
     this.push({ t: 'resize', width, height });
   }
@@ -163,6 +173,8 @@ export class BrowserInput {
   // Called by Python once per frame.
   drain(): InputEvent[] {
     this.pollGamepads();
+    const now = performance.now();
+    for (const source of this.sources) this.queue.push(...source.drain(now));
     const events = this.queue;
     this.queue = [];
     return events;

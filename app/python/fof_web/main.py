@@ -7,7 +7,10 @@ from fof_web import frame, fs
 
 
 def _publishState(engine):
-  state = {"layers": [layer.__class__.__name__ for layer in engine.view.layers]}
+  top = engine.view.topLayer()
+  state = {"layers": [layer.__class__.__name__ for layer in engine.view.layers],
+           "top": top.__class__.__name__ if top else None,
+           "lefty": bool(engine.config.get("game", "leftymode"))}
   for layer in engine.view.layers:
     player = getattr(layer, "player", None)
     if player is not None and hasattr(player, "score"):

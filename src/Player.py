@@ -69,7 +69,8 @@ def gamepadBindings():
   if sys.platform != "emscripten":
     return {}
   bindings = {}
-  for joy in range(4):
+  # Joystick 4 is the on-screen touch frets (app/src/touch.ts).
+  for joy in range(5):
     for fret, control in enumerate([KEY1, KEY2, KEY3, KEY4, KEY5]):
       bindings[encodeJoystickButton(joy, fret)] = control
     bindings[encodeJoystickButton(joy, 9)] = CANCEL
