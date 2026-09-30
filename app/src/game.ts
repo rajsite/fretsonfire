@@ -166,7 +166,7 @@ export function launchGame(options: LaunchOptions): Promise<'quit' | 'restart'> 
           },
           bridge: {
             setVideoMode: (width: number, height: number) => {
-              canvas.style.aspectRatio = `${width} / ${height}`;
+              container.style.setProperty('--fof-aspect', String(width / height));
             },
             toggleFullscreen: () => toggleFullscreen(container),
             setState: (json: string) => {

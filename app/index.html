@@ -17,11 +17,14 @@
       #container {
         width: 100vw;
         height: 100vh;
+        /* Mobile browsers count their toolbars in vh. */
+        height: 100dvh;
       }
       .fof-links {
         position: fixed;
+        z-index: 3;
+        top: 6px;
         right: 8px;
-        bottom: 6px;
         font: 12px system-ui, sans-serif;
         color: #777;
       }
@@ -41,9 +44,10 @@
         background: #555;
         border-color: #aaa;
       }
-      /* Keep the fret bar clear of the links, which fullscreen hides. */
-      #container:not(:fullscreen) .fof-touch {
-        bottom: 30px;
+      @media (pointer: coarse) {
+        .fof-keys {
+          display: none;
+        }
       }
     </style>
   </head>
@@ -53,7 +57,7 @@
       <div id="overlay" class="fof-overlay" hidden></div>
     </div>
     <div class="fof-links">
-      Frets F1&ndash;F5, pick Enter &middot; <button id="fof-fullscreen" type="button">Fullscreen</button> (Alt+Enter) &middot; <button id="fof-touch-toggle" type="button" aria-pressed="false">Touch frets</button> &middot; <a href="pages/index.html">dev pages</a>
+      <span class="fof-keys">Frets F1&ndash;F5, pick Enter &middot;</span> <button id="fof-fullscreen" type="button">Fullscreen</button> <span class="fof-keys">(Alt+Enter)</span> &middot; <button id="fof-touch-toggle" type="button" aria-pressed="false">Touch frets</button> &middot; <a href="pages/index.html">dev pages</a>
     </div>
     <script type="module" src="./src/main.ts"></script>
   </body>

@@ -160,4 +160,26 @@ test.describe('on a touch screen', () => {
     await expect(toggle).toHaveAttribute('aria-pressed', 'false');
     await expect(bar).toBeHidden();
   });
+
+  test('in portrait and landscape the game keeps its shape and the frets stay on it, clear of the links', async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.goto('index.html');
+    await page.locator('#fof-start').tap();
+    await expect.poll(() => page.evaluate(() => window.__fof?.state?.top ?? null), { timeout: 120_000 }).toBe('Menu');
+    await expect(page.locator('.fof-keys').first()).toBeHidden();
+    for (const viewport of [
+      { width: 412, height: 915 },
+      { width: 915, height: 412 },
+    ]) {
+      await page.setViewportSize(viewport);
+      const game = (await page.locator('#game').boundingBox())!;
+      const touch = (await page.locator('.fof-touch').boundingBox())!;
+      const bar = (await page.locator('.fof-touch-bar').boundingBox())!;
+      const links = (await page.locator('.fof-links').boundingBox())!;
+      expect(game.width / game.height).toBeCloseTo(4 / 3, 2);
+      expect(Math.max(game.width / viewport.width, game.height / viewport.height)).toBeCloseTo(1, 2);
+      for (const key of ['x', 'y', 'width', 'height'] as const) expect(touch[key]).toBeCloseTo(game[key], 0);
+      expect(links.y + links.height).toBeLessThanOrEqual(bar.y);
+    }
+  });
 });

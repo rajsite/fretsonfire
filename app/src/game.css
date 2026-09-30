@@ -1,4 +1,6 @@
 .fof-container {
+  --fof-aspect: calc(4 / 3);
+  container-type: size;
   position: relative;
   display: flex;
   align-items: center;
@@ -7,12 +9,13 @@
   width: 100%;
   height: 100%;
 }
+/* The largest box of the game's aspect ratio that fits; the touch frets cover the same box. */
+.fof-container canvas,
+.fof-touch {
+  width: min(100cqw, 100cqh * var(--fof-aspect));
+  height: min(100cqh, 100cqw / var(--fof-aspect));
+}
 .fof-container canvas {
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: 100%;
-  aspect-ratio: 4 / 3;
   image-rendering: auto;
 }
 /* The canvas takes focus to receive keys; the game itself shows what is selected. */
@@ -87,7 +90,9 @@
 /* On-screen touch frets (touch.ts), drawn translucent over the bottom of the game. */
 .fof-touch {
   position: absolute;
-  inset: 0;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   z-index: 1;
   pointer-events: none;
   user-select: none;
@@ -122,7 +127,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: clamp(56px, 22vh, 120px);
+  height: clamp(44px, 22%, 120px);
   display: flex;
   gap: 6px;
   padding: 6px;
@@ -164,7 +169,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: clamp(44px, 10vw, 72px);
+  width: clamp(40px, 10%, 72px);
 }
 .fof-touch-nav button {
   flex: 1;
