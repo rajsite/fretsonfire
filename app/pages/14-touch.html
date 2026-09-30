@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>14 - Touch frets</title>
+    <link rel="stylesheet" href="../src/page.css" />
+    <link rel="stylesheet" href="../src/game.css" />
+    <style>
+      #container {
+        width: 640px;
+        height: 480px;
+      }
+    </style>
+  </head>
+  <body>
+    <header><a href="../index.html">index</a> / 14 - Touch frets (<a href="?menu">menu mode</a>)</header>
+    <main>
+      <p>
+        Status: <span id="status">loading</span> &middot;
+        <button id="fof-touch-toggle" type="button" aria-pressed="false">Touch frets</button>
+      </p>
+      <div id="container" class="fof-container">
+        <canvas id="game" width="640" height="480"></canvas>
+      </div>
+      <div id="log"></div>
+    </main>
+    <script type="module" src="../src/pages/14-touch.ts"></script>
+  </body>
+</html>

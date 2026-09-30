@@ -1,6 +1,7 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { TouchFretState, TOUCH_JOY, CHORD_WINDOW_MS } from '../src/touch.ts';
 import type { InputEvent } from '../src/input.ts';
+import { waitForResult } from './helpers.ts';
 
 const fret = (button: number, down: boolean): InputEvent => ({ t: 'joybutton', joy: TOUCH_JOY, button, down });
 const hat = (y: number): InputEvent => ({ t: 'joyhat', joy: TOUCH_JOY, hat: 0, x: 0, y });
@@ -73,4 +74,90 @@ test('releaseAll lifts held frets and drops a pending strum', () => {
   s.release(1);
   s.releaseAll();
   expect(s.drain(100, true)).toEqual([fret(0, true), fret(1, true), fret(0, false), fret(1, false)]);
+});
+
+// Player control flags.
+const [ACTION1, ACTION2, KEY1, KEY2, KEY3, KEY4, CANCEL] = [0x10, 0x20, 0x40, 0x80, 0x100, 0x200, 0x800];
+
+interface TouchResult {
+  log: { pressed: number[]; released: number[]; controls: (number | null)[] };
+}
+
+async function touchPage(page: Page, query = '') {
+  await page.goto(`pages/14-touch.html${query}`);
+  await expect(page.locator('#status')).toHaveText('listening', { timeout: 60_000 });
+  const cdp = await page.context().newCDPSession(page);
+  const frets = page.locator('.fof-touch-fret');
+  return {
+    fret: async (i: number) => {
+      const b = (await frets.nth(i).boundingBox())!;
+      return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    },
+    // Multi-touch needs raw touch points; page.touchscreen only taps with one finger.
+    touch: (type: 'touchStart' | 'touchMove' | 'touchEnd', touchPoints: { x: number; y: number; id: number }[]) =>
+      cdp.send('Input.dispatchTouchEvent', { type, touchPoints }),
+  };
+}
+
+function expectAllReleased(result: TouchResult) {
+  expect([...result.log.released].sort()).toEqual([...result.log.pressed].sort());
+}
+
+test.describe('on a touch screen', () => {
+  test.use({ hasTouch: true, isMobile: true });
+
+  test('in a song, chords strum once, sliding strums the new fret and Pause cancels', async ({ page }) => {
+    const { fret, touch } = await touchPage(page);
+    await expect(page.locator('.fof-touch')).toBeVisible();
+    await expect(page.locator('.fof-touch-nav')).toBeHidden();
+    await expect(page.locator('.fof-touch-pause')).toHaveText('Pause');
+
+    await touch('touchStart', [
+      { ...(await fret(0)), id: 0 },
+      { ...(await fret(2)), id: 1 },
+    ]);
+    await page.waitForTimeout(200);
+    await touch('touchEnd', []);
+
+    await touch('touchStart', [{ ...(await fret(1)), id: 2 }]);
+    // Long enough for the game to take the strum before the finger slides, even with slow frames.
+    await page.waitForTimeout(500);
+    await touch('touchMove', [{ ...(await fret(3)), id: 2 }]);
+    await page.waitForTimeout(500);
+    await touch('touchEnd', []);
+
+    await page.locator('.fof-touch-pause').tap();
+    const result = await waitForResult<TouchResult>(page);
+    expect(result.log.controls).toEqual([KEY1, KEY3, ACTION1, KEY2, ACTION1, KEY4, ACTION1, CANCEL]);
+    expectAllReleased(result);
+  });
+
+  test('in menus, frets do not strum and the arrows move up and down', async ({ page }) => {
+    const { fret, touch } = await touchPage(page, '?menu');
+    await expect(page.locator('.fof-touch-pause')).toHaveText('Back');
+    await touch('touchStart', [{ ...(await fret(0)), id: 0 }]);
+    await page.waitForTimeout(200);
+    await touch('touchEnd', []);
+    await page.locator('.fof-touch-nav [data-nav=down]').tap();
+    await page.locator('.fof-touch-nav [data-nav=up]').tap();
+    await page.locator('.fof-touch-pause').tap();
+    const result = await waitForResult<TouchResult>(page);
+    expect(result.log.controls).toEqual([KEY1, ACTION2, ACTION1, CANCEL]);
+    expectAllReleased(result);
+  });
+
+  test('turning touch frets off is remembered', async ({ page }) => {
+    await page.goto('pages/14-touch.html?frames=1');
+    const bar = page.locator('.fof-touch');
+    const toggle = page.locator('#fof-touch-toggle');
+    await expect(bar).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await toggle.tap();
+    await expect(bar).toBeHidden();
+    // Reloading while game files download would abort them with console errors.
+    await expect(page.locator('#status')).not.toHaveText('loading', { timeout: 60_000 });
+    await page.reload();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect(bar).toBeHidden();
+  });
 });
