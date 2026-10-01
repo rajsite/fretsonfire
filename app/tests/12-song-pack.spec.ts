@@ -78,7 +78,7 @@ test('a mounted pack is visible to the game library and song APIs', async ({ pag
   await page.locator('#pack').setInputFiles(PACK);
   const r = await waitForResult<PackResult>(page);
   expect(r.root).toBe('/game/data/songs/Test Pack');
-  expect(r.topLibraries).toEqual(['songs/Test Pack']);
+  expect([...r.topLibraries].sort()).toEqual(['songs/Test Pack', 'songs/intintedao']);
   expect(r.defaultSongs).toEqual(['bangbang', 'defy', 'tutorial', 'twibmpg']);
   expect(Object.keys(r.libraries).sort()).toEqual(['songs/Test Pack', 'songs/Test Pack/Classic', 'songs/Test Pack/Rock Band']);
   expect(r.libraries['songs/Test Pack'].name).toBe('Test Pack');

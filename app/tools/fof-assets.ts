@@ -69,7 +69,8 @@ export function classify(rel: string): AssetClass | null {
   const sub = rel.slice('data/'.length);
   if (sub.startsWith('win32/') || sub === 'Makefile') return null;
   if (EXCLUDED_DATA_EXT.has(ext)) return null;
-  if (sub.startsWith('songs/') && ext === '.ogg') return 'lazy';
+  // Song license/link notes ship for attribution but the game never reads them.
+  if (sub.startsWith('songs/') && (ext === '.ogg' || ext === '.md')) return 'lazy';
   return 'core';
 }
 
