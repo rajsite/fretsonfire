@@ -80,7 +80,8 @@ test('a mounted pack is visible to the game library and song APIs', async ({ pag
   expect(r.root).toBe('/game/data/songs/Test Pack');
   expect([...r.topLibraries].sort()).toEqual(['songs/Test Pack', 'songs/intintedao']);
   expect(r.defaultSongs).toEqual(['bangbang', 'defy', 'tutorial', 'twibmpg']);
-  expect(Object.keys(r.libraries).sort()).toEqual(['songs/Test Pack', 'songs/Test Pack/Classic', 'songs/Test Pack/Rock Band']);
+  expect(Object.keys(r.libraries).sort()).toEqual(['songs/Test Pack', 'songs/Test Pack/Classic', 'songs/Test Pack/Rock Band', 'songs/intintedao']);
+  expect(Object.keys(r.libraries['songs/intintedao'].songs)).toHaveLength(30);
   expect(r.libraries['songs/Test Pack'].name).toBe('Test Pack');
   const rb = r.libraries['songs/Test Pack/Rock Band'].songs;
   expect(Object.keys(rb).sort()).toEqual(['01 RB Style', '02 Guitar Only']);
